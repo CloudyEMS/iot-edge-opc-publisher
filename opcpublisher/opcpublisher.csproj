@@ -9,6 +9,7 @@
     <DebugType>portable</DebugType>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Authors>Microsoft</Authors>
+    <ProjectGuid>f3be0d66-1e70-41d8-9107-656a453ae6e7</ProjectGuid>
 </PropertyGroup>
 
 <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
