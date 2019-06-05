@@ -12,31 +12,29 @@
         /// <summary>
         /// Get the singleton.
         /// </summary>
-        public static IotEdgeHubCommunication Instance
+        public static IotEdgeHubCommunication Instance(bool registerMethodHandlers, bool listenMessages)
         {
-            get
+            lock (_singletonLock)
             {
-                lock (_singletonLock)
+                if (_instance == null)
                 {
-                    if (_instance == null)
-                    {
-                        _instance = new IotEdgeHubCommunication();
-                    }
-                    return _instance;
+                    _instance = new IotEdgeHubCommunication(registerMethodHandlers, listenMessages);
                 }
+
+                return _instance;
             }
         }
 
         /// <summary>
         /// Ctor for the class.
         /// </summary>
-        public IotEdgeHubCommunication()
+        public IotEdgeHubCommunication(bool registerMethodHandlers, bool listenMessages)
         {
             // connect to IoT Edge hub
             Logger.Information($"Create module client using '{HubProtocol}' for communication.");
-            IHubClient hubClient = HubClient.CreateModuleClientFromEnvironment(HubProtocol);
+            IHubClient hubClient = HubClient.CreateModuleClientFromEnvironment(HubProtocol, Logger);
 
-            if (!InitHubCommunicationAsync(hubClient).Result)
+            if (!InitHubCommunicationAsync(hubClient, registerMethodHandlers, listenMessages).Result)
             {
                 string errorMessage = $"Cannot create module client. Exiting...";
                 Logger.Fatal(errorMessage);

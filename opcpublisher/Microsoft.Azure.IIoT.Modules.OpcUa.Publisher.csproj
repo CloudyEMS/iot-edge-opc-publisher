@@ -1,5 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
+
+<PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <AssemblyName>opcpublisher</AssemblyName>
     <OutputType>Exe</OutputType>
@@ -25,20 +26,25 @@
     <None Remove="CertificateStores\**" />
     <None Remove="Logs\**" />
   </ItemGroup>
+
   <ItemGroup>
     <ProjectCapability Include="AzureIoTEdgeModule" />
   </ItemGroup>
+  
   <ItemGroup>
     <None Remove="publishednodes.json" />
   </ItemGroup>
+
   <ItemGroup>
     <Content Include="publishednodes.json">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
   <ItemGroup>
     <Folder Include="Properties\" />
   </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Azure.Devices" Version="1.17.3" />
     <PackageReference Include="Microsoft.Azure.Devices.Client" Version="1.20.1" />
@@ -49,9 +55,9 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="4.0.0" />
   </ItemGroup>
-  <!--
+
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
     <Exec Command="gitversion $(SolutionDir)  /updateassemblyinfo /ensureassemblyinfo &gt;nul 2&gt;nul&#xD;&#xA;set ERRORLEVEL=0" />
   </Target>
-  -->
+
 </Project>

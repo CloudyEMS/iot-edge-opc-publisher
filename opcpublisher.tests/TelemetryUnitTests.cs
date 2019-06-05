@@ -15,19 +15,14 @@ namespace OpcPublisher
     [Collection("Need PLC and publisher config")]
     public sealed class TelemetryUnitTests : IDisposable
     {
-        public TelemetryUnitTests(ITestOutputHelper output, PlcOpcUaServerFixture server)
+        public TelemetryUnitTests(ITestOutputHelper output)
         {
             // xunit output
             _output = output;
-            _server = server;
 
             // init static publisher objects
             TelemetryConfiguration = PublisherTelemetryConfiguration.Instance;
             Diag = PublisherDiagnostics.Instance;
-        }
-
-        private void CheckWhetherToSkip() {
-            Skip.If(_server.Plc == null, "Server not reachable - Ensure docker endpoint is properly configured.");
         }
 
         /// <summary>
@@ -54,14 +49,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test telemetry is sent to the hub.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Telemetry", "All")]
         [Trait("TelemetryFunction", "Basic")]
         [MemberData(nameof(PnPlcCurrentTime))]
         public async Task TelemetryIsSentAsync(string testFilename, int configuredSessions,
             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/telemetry/{testFilename}";
@@ -89,7 +83,7 @@ namespace OpcPublisher
             int eventsReceived = 0;
             hubClientMock.Setup(m => m.SendEventAsync(It.IsAny<Message>())).Callback<Message>(m => eventsReceived++);
             IotHubCommunication.IotHubClient = hubClientMock.Object;
-            Hub.InitHubCommunicationAsync(hubClientMockBase.Object).Wait();
+            Hub.InitHubCommunicationAsync(hubClientMockBase.Object, true, true).Wait();
 
             try
             {
@@ -98,7 +92,7 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 int seconds = UnitTestHelper.WaitTilItemsAreMonitoredAndFirstEventReceived();
                 long eventsAfterConnect = HubCommunicationBase.NumberOfEvents;
                 await Task.Delay(2500).ConfigureAwait(false);
@@ -106,10 +100,10 @@ namespace OpcPublisher
                 _output.WriteLine($"# of events at start: {eventsAtStart}, # events after connect: {eventsAfterConnect}, # events after delay: {eventsAfterDelay}");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 _output.WriteLine($"waited {seconds} seconds till monitoring started, events generated {eventsReceived}");
                 hubClientMock.VerifySet(m => m.ProductInfo = "OpcPublisher");
-                Assert.Equal(3, eventsAfterDelay - eventsAtStart);
+                Assert.True(eventsAfterDelay - eventsAtStart == 3);
             }
             finally
             {
@@ -124,14 +118,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test telemetry is sent to the hub using node with static value.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Telemetry", "All")]
         [Trait("TelemetryFunction", "Basic")]
         [MemberData(nameof(PnPlcProductName))]
         public async Task TelemetryIsSentWithStaticNodeValueAsync(string testFilename, int configuredSessions,
             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/telemetry/{testFilename}";
@@ -159,7 +152,7 @@ namespace OpcPublisher
             int eventsReceived = 0;
             hubClientMock.Setup(m => m.SendEventAsync(It.IsAny<Message>())).Callback<Message>(m => eventsReceived++);
             IotHubCommunication.IotHubClient = hubClientMock.Object;
-            Hub.InitHubCommunicationAsync(hubClientMockBase.Object).Wait();
+            Hub.InitHubCommunicationAsync(hubClientMockBase.Object, true, true).Wait();
 
             try
             {
@@ -168,7 +161,7 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 int seconds = UnitTestHelper.WaitTilItemsAreMonitored();
                 long eventsAfterConnect = HubCommunicationBase.NumberOfEvents;
                 await Task.Delay(3000).ConfigureAwait(false);
@@ -176,10 +169,10 @@ namespace OpcPublisher
                 _output.WriteLine($"# of events at start: {eventsAtStart}, # events after connect: {eventsAfterConnect}, # events after delay: {eventsAfterDelay}");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 _output.WriteLine($"waited {seconds} seconds till monitoring started, events generated {eventsReceived}");
                 hubClientMock.VerifySet(m => m.ProductInfo = "OpcPublisher");
-                Assert.Equal(1, eventsAfterDelay - eventsAtStart);
+                Assert.True(eventsAfterDelay - eventsAtStart == 1);
             }
             finally
             {
@@ -194,14 +187,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test first event is skipped.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Telemetry", "All")]
         [Trait("TelemetryFunction", "SkipFirst")]
         [MemberData(nameof(PnPlcCurrentTime))]
         public async Task FirstTelemetryEventIsSkippedAsync(string testFilename, int configuredSessions,
             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/telemetry/{testFilename}";
@@ -230,7 +222,7 @@ namespace OpcPublisher
             int eventsReceived = 0;
             hubClientMock.Setup(m => m.SendEventAsync(It.IsAny<Message>())).Callback<Message>(m => eventsReceived++);
             IotHubCommunication.IotHubClient = hubClientMock.Object;
-            Hub.InitHubCommunicationAsync(hubClientMockBase.Object).Wait();
+            Hub.InitHubCommunicationAsync(hubClientMockBase.Object, true, true).Wait();
 
             try
             {
@@ -239,7 +231,7 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 int seconds = UnitTestHelper.WaitTilItemsAreMonitored();
                 long eventsAfterConnect = HubCommunicationBase.NumberOfEvents;
                 await Task.Delay(1900).ConfigureAwait(false);
@@ -247,7 +239,7 @@ namespace OpcPublisher
                 _output.WriteLine($"# of events at start: {eventsAtStart}, # events after connect: {eventsAfterConnect}, # events after delay: {eventsAfterDelay}");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 _output.WriteLine($"waited {seconds} seconds till monitoring started, events generated {eventsReceived}");
                 hubClientMock.VerifySet(m => m.ProductInfo = "OpcPublisher");
                 Assert.True(eventsAfterDelay - eventsAtStart == 1);
@@ -265,14 +257,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test first event is skipped using a node with static value.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Telemetry", "All")]
         [Trait("TelemetryFunction", "SkipFirst")]
         [MemberData(nameof(PnPlcProductName))]
         public async Task FirstTelemetryEventIsSkippedWithStaticNodeValueAsync(string testFilename, int configuredSessions,
             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/telemetry/{testFilename}";
@@ -301,7 +292,7 @@ namespace OpcPublisher
             int eventsReceived = 0;
             hubClientMock.Setup(m => m.SendEventAsync(It.IsAny<Message>())).Callback<Message>(m => eventsReceived++);
             IotHubCommunication.IotHubClient = hubClientMock.Object;
-            Hub.InitHubCommunicationAsync(hubClientMockBase.Object).Wait();
+            Hub.InitHubCommunicationAsync(hubClientMockBase.Object, true, true).Wait();
 
             try
             {
@@ -310,7 +301,7 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 int seconds = UnitTestHelper.WaitTilItemsAreMonitored();
                 long eventsAfterConnect = HubCommunicationBase.NumberOfEvents;
                 await Task.Delay(3000).ConfigureAwait(false);
@@ -318,7 +309,7 @@ namespace OpcPublisher
                 _output.WriteLine($"# of events at start: {eventsAtStart}, # events after connect: {eventsAfterConnect}, # events after delay: {eventsAfterDelay}");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 _output.WriteLine($"waited {seconds} seconds till monitoring started, events generated {eventsReceived}");
                 hubClientMock.VerifySet(m => m.ProductInfo = "OpcPublisher");
                 Assert.True(eventsAfterDelay - eventsAtStart == 0);
@@ -336,14 +327,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test heartbeat is working on a node with static value.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Telemetry", "All")]
         [Trait("TelemetryFunction", "Heartbeat")]
         [MemberData(nameof(PnPlcProductNameHeartbeat2))]
         public async Task HeartbeatOnStaticNodeValueIsWorkingAsync(string testFilename, int configuredSessions,
             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/telemetry/{testFilename}";
@@ -371,7 +361,7 @@ namespace OpcPublisher
             int eventsReceived = 0;
             hubClientMock.Setup(m => m.SendEventAsync(It.IsAny<Message>())).Callback<Message>(m => eventsReceived++);
             IotHubCommunication.IotHubClient = hubClientMock.Object;
-            Hub.InitHubCommunicationAsync(hubClientMockBase.Object).Wait();
+            Hub.InitHubCommunicationAsync(hubClientMockBase.Object, true, true).Wait();
 
             try
             {
@@ -380,18 +370,18 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 int seconds = UnitTestHelper.WaitTilItemsAreMonitored();
                 long eventsAfterConnect = HubCommunicationBase.NumberOfEvents;
-                await Task.Delay(5000).ConfigureAwait(false);
+                await Task.Delay(3000).ConfigureAwait(false);
                 long eventsAfterDelay = HubCommunicationBase.NumberOfEvents;
                 _output.WriteLine($"# of events at start: {eventsAtStart}, # events after connect: {eventsAfterConnect}, # events after delay: {eventsAfterDelay}");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 _output.WriteLine($"waited {seconds} seconds till monitoring started, events generated {eventsReceived}");
                 hubClientMock.VerifySet(m => m.ProductInfo = "OpcPublisher");
-                Assert.Equal(2, eventsAfterDelay - eventsAtStart);
+                Assert.True(eventsAfterDelay - eventsAtStart == 2);
             }
             finally
             {
@@ -406,14 +396,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test heartbeat is working on a node with static value with skip first true.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Telemetry", "All")]
         [Trait("TelemetryFunction", "Heartbeat")]
         [MemberData(nameof(PnPlcProductNameHeartbeat2SkipFirst))]
         public async Task HeartbeatWithSkipFirstOnStaticNodeValueIsWorkingAsync(string testFilename, int configuredSessions,
             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/telemetry/{testFilename}";
@@ -441,7 +430,7 @@ namespace OpcPublisher
             int eventsReceived = 0;
             hubClientMock.Setup(m => m.SendEventAsync(It.IsAny<Message>())).Callback<Message>(m => eventsReceived++);
             IotHubCommunication.IotHubClient = hubClientMock.Object;
-            Hub.InitHubCommunicationAsync(hubClientMockBase.Object).Wait();
+            Hub.InitHubCommunicationAsync(hubClientMockBase.Object, true, true).Wait();
 
             try
             {
@@ -450,7 +439,7 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 int seconds = UnitTestHelper.WaitTilItemsAreMonitoredAndFirstEventReceived();
                 long eventsAfterConnect = HubCommunicationBase.NumberOfEvents;
                 await Task.Delay(3000).ConfigureAwait(false);
@@ -458,7 +447,7 @@ namespace OpcPublisher
                 _output.WriteLine($"# of events at start: {eventsAtStart}, # events after connect: {eventsAfterConnect}, # events after delay: {eventsAfterDelay}");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 _output.WriteLine($"waited {seconds} seconds till monitoring started, events generated {eventsReceived}");
                 hubClientMock.VerifySet(m => m.ProductInfo = "OpcPublisher");
                 Assert.True(eventsAfterDelay - eventsAtStart == 2);
@@ -534,6 +523,5 @@ namespace OpcPublisher
             };
 
         private readonly ITestOutputHelper _output;
-        private readonly PlcOpcUaServerFixture _server;
     }
 }

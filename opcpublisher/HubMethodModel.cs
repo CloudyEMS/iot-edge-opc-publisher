@@ -67,25 +67,49 @@ namespace OpcPublisher
         public int NumberOfOpcSubscriptionsConnected { get; set; }
 
         [JsonProperty(NullValueHandling = NullValueHandling.Include)]
-        public int NumberOfOpcMonitoredItemsConfigured { get; set; }
+        public int NumberOfOpcDataChangeMonitoredItemsConfigured { get; set; }
 
         [JsonProperty(NullValueHandling = NullValueHandling.Include)]
-        public int NumberOfOpcMonitoredItemsMonitored { get; set; }
+        public int NumberOfOpcDataChangeMonitoredItemsMonitored { get; set; }
 
         [JsonProperty(NullValueHandling = NullValueHandling.Include)]
-        public int NumberOfOpcMonitoredItemsToRemove { get; set; }
+        public int NumberOfOpcDataChangeMonitoredItemsToRemove { get; set; }
+
+        [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+        public int NumberOfOpcEventMonitoredItemsConfigured { get; set; }
+
+        [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+        public int NumberOfOpcEventMonitoredItemsMonitored { get; set; }
+
+        [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+        public int NumberOfOpcEventMonitoredItemsToRemove { get; set; }
 
         [JsonProperty(NullValueHandling = NullValueHandling.Include)]
         public int MonitoredItemsQueueCapacity { get; set; }
 
         [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+        public int MonitoredPropertiesQueueCapacity { get; set; }
+
+        [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+        public int MonitoredSettingsQueueCapacity { get; set; }
+
+        [JsonProperty(NullValueHandling = NullValueHandling.Include)]
         public long MonitoredItemsQueueCount { get; set; }
+
+        [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+        public long MonitoredPropertiesQueueCount { get; set; }
+
+        [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+        public long MonitoredSettingsQueueCount { get; set; }
 
         [JsonProperty(NullValueHandling = NullValueHandling.Include)]
         public long EnqueueCount { get; set; }
 
         [JsonProperty(NullValueHandling = NullValueHandling.Include)]
         public long EnqueueFailureCount { get; set; }
+
+        [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+        public long NumberOfDataChangeEvents { get; set; }
 
         [JsonProperty(NullValueHandling = NullValueHandling.Include)]
         public long NumberOfEvents { get; set; }
@@ -119,6 +143,15 @@ namespace OpcPublisher
 
         [JsonProperty(NullValueHandling = NullValueHandling.Include)]
         public TransportType HubProtocol { get; set; }
+        
+        [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+        public long SentProperties { get; set; }
+
+        [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+        public long SentSettings { get; set; }
+
+        [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+        public long SentIoTCEvents { get; set; }
     }
 
     /// <summary>
@@ -169,6 +202,7 @@ namespace OpcPublisher
 
         public string EndpointUrl { get; set; }
         public List<OpcNodeOnEndpointModel> OpcNodes { get; }
+        public List<OpcEventOnEndpointModel> OpcEvents { get; } = new List<OpcEventOnEndpointModel>();
 
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         [JsonConverter(typeof(StringEnumConverter))]

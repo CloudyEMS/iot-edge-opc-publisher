@@ -8,17 +8,17 @@ using System.Threading.Tasks;
 
 namespace OpcPublisher
 {
-    using Microsoft.Azure.Devices.Client;
     using Opc.Ua;
     using Opc.Ua.Server;
+    using OpcPublisher.Crypto;
     using Serilog;
+    using System.ComponentModel;
     using System.Diagnostics;
     using System.Globalization;
     using System.IO;
     using System.Text;
     using System.Text.RegularExpressions;
     using static HubCommunicationBase;
-    using static IotEdgeHubCommunication;
     using static IotHubCommunication;
     using static Opc.Ua.CertificateStoreType;
     using static OpcApplicationConfiguration;
@@ -28,8 +28,6 @@ namespace OpcPublisher
     using static PublisherNodeConfiguration;
     using static PublisherTelemetryConfiguration;
     using static System.Console;
-    using System.ComponentModel;
-    using OpcPublisher.Crypto;
 
     public sealed class Program
     {
@@ -37,6 +35,13 @@ namespace OpcPublisher
         /// IoTHub/EdgeHub communication object.
         /// </summary>
         public static IHubCommunication Hub { get; set; }
+
+        /// <summary>
+        /// IoTHub/EdgeHub communication object to send messages.
+        /// </summary>
+        public static IHubCommunication SendHub { get; set; }
+
+        public static bool IsIotHubExtendedMode { get; set; }
 
         /// <summary>
         /// Telemetry configuration object.
@@ -163,6 +168,9 @@ namespace OpcPublisher
                             }
                          },
                         { "ic|iotcentral", $"publisher will send OPC UA data in IoTCentral compatible format (DisplayName of a node is used as key, this key is the Field name in IoTCentral). you need to ensure that all DisplayName's are unique. (Auto enables fetch display name)\nDefault: {IotCentralMode}", b => IotCentralMode = FetchOpcNodeDisplayName = b != null },
+                        { "icdc|iotcentraldeviceconnectionstring=", "publisher will start in extended IoTEdge mode, configuration is accepted through EdgeHub, Messages are sent to provided device connection string",
+                            (string iotcentraldc) => IotCentralDeviceConnectionString = iotcentraldc
+                        },
                         { "sw|sessionconnectwait=", $"specify the wait time in seconds publisher is trying to connect to disconnected endpoints and starts monitoring unmonitored items\nMin: 10\nDefault: {SessionConnectWaitSec}", (int i) => {
                                 if (i > 10)
                                 {
@@ -216,7 +224,6 @@ namespace OpcPublisher
                                 }
                             }
                         },
-
 
                         // IoTHub specific options
                         { "ih|iothubprotocol=", $"the protocol to use for communication with IoTHub (allowed values: {$"{string.Join(", ", Enum.GetNames(HubProtocol.GetType()))}"}) or IoT EdgeHub (allowed values: Mqtt_Tcp_Only, Amqp_Tcp_Only).\nDefault for IoTHub: {IotHubProtocolDefault}\nDefault for IoT EdgeHub: {IotEdgeHubProtocolDefault}",
@@ -279,7 +286,6 @@ namespace OpcPublisher
                             "a skip first event setting.\n" +
                             $"Default: {SkipFirstDefault}", (bool b) => { SkipFirstDefault = b; }
                         },
-
 
                         // opc configuration options
                         { "pn|portnum=", $"the server port of the publisher OPC server endpoint.\nDefault: {ServerPort}", (ushort p) => ServerPort = p },
@@ -387,7 +393,6 @@ namespace OpcPublisher
 
                         { "ss|suppressedopcstatuscodes=", $"specifies the OPC UA status codes for which no events should be generated.\n" +
                             $"Default: {SuppressedOpcStatusCodesDefault}", (string s) => opcStatusCodesToSuppress = s },
-
 
                         // cert store options
                         { "at|appcertstoretype=", $"the own application cert store type. \n(allowed values: Directory, X509Store)\nDefault: '{OpcOwnCertStoreType}'", (string s) => {
@@ -545,9 +550,7 @@ namespace OpcPublisher
                         { "tt|trustedcertstoretype=", $"ignored, only supported for backward compatibility. the trusted cert store will always reside in a directory.", s => { }},
                         { "rt|rejectedcertstoretype=", $"ignored, only supported for backward compatibility. the rejected cert store will always reside in a directory.", s => { }},
                         { "it|issuercertstoretype=", $"ignored, only supported for backward compatibility. the trusted issuer cert store will always reside in a directory.", s => { }},
-
                     };
-
 
                 List<string> extraArgs = new List<string>();
                 try
@@ -671,8 +674,7 @@ namespace OpcPublisher
                 var quitEvent = new ManualResetEvent(false);
                 try
                 {
-                    Console.CancelKeyPress += (sender, eArgs) =>
-                    {
+                    Console.CancelKeyPress += (sender, eArgs) => {
                         quitEvent.Set();
                         eArgs.Cancel = true;
                         ShutdownTokenSource.Cancel();
@@ -721,15 +723,24 @@ namespace OpcPublisher
 
                 // initialize the telemetry configuration
                 TelemetryConfiguration = PublisherTelemetryConfiguration.Instance;
+                IsIotHubExtendedMode = IotEdgeIndicator.RunsAsIotEdgeModule && !string.IsNullOrEmpty(IotCentralDeviceConnectionString);
 
                 // initialize hub communication
-                if (IotEdgeIndicator.RunsAsIotEdgeModule)
+                if (IsIotHubExtendedMode)
                 {
+                    Logger.Information("Running in extended IoTEdge mode.");
+                    Hub = IotEdgeHubCommunication.Instance(true, false);
+                    SendHub = IotHubCommunication.SendInstance;
+                }
+                else if (IotEdgeIndicator.RunsAsIotEdgeModule)
+                {
+                    Logger.Information("Running in normal IoTEdge mode.");
                     // initialize and start EdgeHub communication
-                    Hub = IotEdgeHubCommunication.Instance;
+                    Hub = IotEdgeHubCommunication.Instance(true, true);
                 }
                 else
                 {
+                    Logger.Information("Running in IoT Hub mode.");
                     // initialize and start IoTHub communication
                     Hub = IotHubCommunication.Instance;
                 }
@@ -762,7 +773,13 @@ namespace OpcPublisher
                     Logger.Information("Publisher is running. Press CTRL-C to quit.");
 
                     // wait for Ctrl-C
-                    await Task.Delay(Timeout.Infinite, ShutdownTokenSource.Token).ConfigureAwait(false);
+                    try
+                    {
+                        await Task.Delay(Timeout.Infinite, ShutdownTokenSource.Token).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                    }
                 }
 
                 Logger.Information("");
@@ -873,7 +890,6 @@ namespace OpcPublisher
         /// </summary>
         private static void Usage(Mono.Options.OptionSet options)
         {
-
             // show usage
             Logger.Information("");
             Logger.Information($"OPC Publisher V{FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion}");
@@ -950,23 +966,28 @@ namespace OpcPublisher
                     loggerConfiguration.MinimumLevel.Fatal();
                     OpcTraceToLoggerFatal = 0;
                     break;
+
                 case "error":
                     loggerConfiguration.MinimumLevel.Error();
                     OpcStackTraceMask = OpcTraceToLoggerError = Utils.TraceMasks.Error;
                     break;
+
                 case "warn":
                     loggerConfiguration.MinimumLevel.Warning();
                     OpcTraceToLoggerWarning = 0;
                     break;
+
                 case "info":
                     loggerConfiguration.MinimumLevel.Information();
                     OpcStackTraceMask = OpcTraceToLoggerInformation = 0;
                     break;
+
                 case "debug":
                     loggerConfiguration.MinimumLevel.Debug();
                     OpcStackTraceMask = OpcTraceToLoggerDebug = Utils.TraceMasks.StackTrace | Utils.TraceMasks.Operation |
                         Utils.TraceMasks.StartStop | Utils.TraceMasks.ExternalSystem | Utils.TraceMasks.Security;
                     break;
+
                 case "verbose":
                     loggerConfiguration.MinimumLevel.Verbose();
                     OpcStackTraceMask = OpcTraceToLoggerVerbose = Utils.TraceMasks.All;
@@ -1075,7 +1096,6 @@ namespace OpcPublisher
                     {
                         throw new OptionException($"The file '{fileName}' does not exist.", option);
                     }
-
                 }
             }
             else

@@ -38,5 +38,7 @@ namespace OpcPublisher
         bool RemoveSubscriptions(IEnumerable<IOpcUaSubscription> subscriptions);
 
         bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions);
+
+        Session GetSession();
     }
 }

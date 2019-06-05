@@ -1,0 +1,53 @@
+{
+  "EndpointUrl": "opc.tcp://127.0.0.1:62563/Quickstarts/SimpleEventsServer",
+  "OpcNodes": [
+
+  ],
+  "OpcEvents": [
+    {
+      "Id": "i=2253",
+      "DisplayName": "Server",
+      "SelectClauses": [
+        {
+          "TypeId": "i=2253",
+          "IotCentralEventPublishMode": "Default",
+          "BrowsePaths": [
+            "EventId"
+          ]
+        },
+        {
+          "TypeId": "i=2253",
+          "IotCentralEventPublishMode": "Default",
+          "BrowsePaths": [
+            "Message"
+          ]
+        },
+        {
+          "TypeId": "i=2253",
+          "IotCentralEventPublishMode": "Default",
+          "BrowsePaths": [
+            "2:CurrentStep"
+          ]
+        },
+        {
+          "TypeId": "i=2253",
+          "IotCentralEventPublishMode": "Default",
+          "BrowsePaths": [
+            "2:CycleId"
+          ]
+        }
+      ],
+      "WhereClause": [
+        {
+          "Operator": "OfType",
+          "Operands": [
+            {
+              "Literal": "i=2041"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "UseSecurity": false
+}

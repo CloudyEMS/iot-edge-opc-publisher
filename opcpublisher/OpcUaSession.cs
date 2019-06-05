@@ -86,6 +86,12 @@ namespace OpcPublisher
 
         public bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions) => _session.RemoveSubscriptions(subscriptions);
 
+        public void WriteValue(WriteValueCollection valuesToWriteValueCollection,
+            out StatusCodeCollection statusCodeCollection, out DiagnosticInfoCollection diagnosticInfoCollection) =>
+            _session.Write(null, valuesToWriteValueCollection, out statusCodeCollection, out diagnosticInfoCollection);
+
+        public Session GetSession() => _session;
+
         private Session _session = null;
     }
 }

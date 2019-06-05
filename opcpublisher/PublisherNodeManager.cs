@@ -516,13 +516,13 @@ namespace OpcPublisher
                 {
                     // add the node info to the subscription with the default publishing interval, execute syncronously
                     Logger.Debug($"{logPrefix} Request to monitor item with NodeId '{nodeId.ToString()}' (with default PublishingInterval and SamplingInterval)");
-                    statusCode = opcSession.AddNodeForMonitoringAsync(nodeId, null, null, null, null, null, null, ShutdownTokenSource.Token).Result;
+                    statusCode = opcSession.AddNodeForMonitoringAsync(nodeId, null, null, null, null, null, null, ShutdownTokenSource.Token, null).Result;
                 }
                 else
                 {
                     // add the node info to the subscription with the default publishing interval, execute syncronously
                     Logger.Debug($"{logPrefix} Request to monitor item with ExpandedNodeId '{expandedNodeId.ToString()}' (with default PublishingInterval and SamplingInterval)");
-                    statusCode = opcSession.AddNodeForMonitoringAsync(null, expandedNodeId, null, null, null, null, null, ShutdownTokenSource.Token).Result;
+                    statusCode = opcSession.AddNodeForMonitoringAsync(null, expandedNodeId, null, null, null, null, null, ShutdownTokenSource.Token, null).Result;
                 }
             }
             catch (Exception e)

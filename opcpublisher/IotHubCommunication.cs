@@ -10,7 +10,7 @@
     /// <summary>
     /// Class to handle all IoTHub communication.
     /// </summary>
-    public class IotHubCommunication : HubCommunicationBase
+    public partial class IotHubCommunication : HubCommunicationBase
     {
         /// <summary>
         /// Default cert store path of the IoTHub credentials for store type directory.
@@ -37,6 +37,11 @@
         /// The device connection string to be used to connect to IoTHub.
         /// </summary>
         public static string DeviceConnectionString { get; set; } = null;
+
+        /// <summary>
+        /// The device connection string to be used to connect to IoTHub.
+        /// </summary>
+        public static string IotCentralDeviceConnectionString { get; set; } = null;
 
         /// <summary>
         /// The IoTHub owner connection string to be used to connect to IoTHub.
@@ -146,8 +151,8 @@
 
             // connect as device client
             Logger.Information($"Create device client using '{HubProtocol}' for communication.");
-            IotHubClient = HubClient.CreateDeviceClientFromConnectionString(DeviceConnectionString, HubProtocol);
-            if (!InitHubCommunicationAsync(IotHubClient).Result)
+            IotHubClient = HubClient.CreateDeviceClientFromConnectionString(DeviceConnectionString, HubProtocol, Logger);
+            if (!InitHubCommunicationAsync(IotHubClient, true, true).Result)
             {
                 string errorMessage = $"Cannot create IoTHub client. Exiting...";
                 Logger.Fatal(errorMessage);

@@ -1,0 +1,14 @@
+[
+  {
+    "EndpointUrl": "opc.tcp://localhost:50000",
+    "UseSecurity": false,
+    "OpcNodes": [
+      {
+        "Id": "i=11492",
+        "OpcSamplingInterval": 2000,
+        "OpcPublishingInterval": 5000,
+        "IotCentralItemPublishMode": "Command"
+      }
+    ]
+  }
+]

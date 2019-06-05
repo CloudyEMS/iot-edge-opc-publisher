@@ -1,8 +1,10 @@
-﻿using System.Threading.Tasks;
+﻿using System.Threading;
+using System.Threading.Tasks;
 
 namespace OpcPublisher
 {
     using Microsoft.Azure.Devices.Client;
+    using Microsoft.Azure.Devices.Shared;
 
     /// <summary>
     /// Interface to encapsulate the IoTHub device/module client interface.
@@ -57,5 +59,21 @@ namespace OpcPublisher
         /// Sends an event to device hub
         /// </summary>
         Task SendEventAsync(Message message);
+        
+        /// <summary>
+        /// Insert/Update a property from device twin (reported property collection) and sends it to device hub
+        /// </summary>
+        Task SendPropertyAsync(MessageData message, CancellationToken ct);
+
+        /// <summary>
+        /// Insert/Update a OPC UA Event and sends it as IoT Central Event to device hub
+        /// </summary>
+        Task SendIoTCEventAsync(Message message, CancellationToken ct);
+
+        /// <summary>
+        /// Handle IoT Central commands which are normally not registered within the direct IoT Hub Calls
+        /// </summary>
+        /// <returns></returns>
+        Task<MethodResponse> DefaultCommandHandlerAsync(MethodRequest methodRequest, object userContext);
     }
 }

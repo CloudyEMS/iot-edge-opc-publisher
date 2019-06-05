@@ -26,10 +26,6 @@ namespace OpcPublisher
             Diag = PublisherDiagnostics.Instance;
         }
 
-        private void CheckWhetherToSkip() {
-            Skip.If(_server.Plc == null, "Server not reachable - Ensure docker endpoint is properly configured.");
-        }
-
         /// <summary>
         /// Implement IDisposable.
         /// </summary>
@@ -54,14 +50,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test reading different configuration files and creating the correct internal data structures.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "NodeIdSyntax")]
         [MemberData(nameof(PnPlcSimple))]
         public void CreateOpcPublishingData(string testFilename, int configuredSessions,
             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/publishernodeconfiguration/{testFilename}";
@@ -83,10 +78,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
             }
             finally
             {
@@ -98,14 +93,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test that when no OpcPublishingInterval setting configured, it is not persisted.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "OpcPublishingInterval")]
         [MemberData(nameof(PnPlcOpcPublishingIntervalNone))]
         public async Task OpcPublishingIntervalUnsetAndNotPersisted(string testFilename, int configuredSessions,
                             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/opcpublishinginterval/{testFilename}";
@@ -131,10 +125,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 Assert.True(NodeConfiguration.OpcSessions[0].OpcSubscriptions[0].RequestedPublishingInterval == OpcPublishingInterval);
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
@@ -151,14 +145,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test that OpcPublishingInterval setting is kept when different as default setting.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "OpcPublishingInterval")]
         [MemberData(nameof(PnPlcOpcPublishingInterval2000))]
         public async Task OpcPublishingInterval2000DifferentThanDefaultAndIsPersisted(string testFilename, int configuredSessions,
                             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/opcpublishinginterval/{testFilename}";
@@ -181,10 +174,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 Assert.True(NodeConfiguration.OpcSessions[0].OpcSubscriptions[0].RequestedPublishingInterval == 2000);
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
@@ -201,14 +194,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test that OpcPublishingInterval setting is not removed when default setting is the same.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "OpcPublishingInterval")]
         [MemberData(nameof(PnPlcOpcPublishingInterval2000))]
         public async Task OpcPublishingInterval2000SameAsDefaultAndIsPersisted(string testFilename, int configuredSessions,
                                     int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/opcpublishinginterval/{testFilename}";
@@ -231,10 +223,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 Assert.True(NodeConfiguration.OpcSessions[0].OpcSubscriptions[0].RequestedPublishingInterval == 2000);
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
@@ -252,14 +244,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test that when no OpcSamplingInterval setting configured, it is not persisted.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "OpcSamplingInterval")]
         [MemberData(nameof(PnPlcOpcSamplingIntervalNone))]
         public async Task OpcSamplingIntervalUnsetAndNotPersisted(string testFilename, int configuredSessions,
                             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/opcsamplinginterval/{testFilename}";
@@ -285,10 +276,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 Assert.True(NodeConfiguration.OpcSessions[0].OpcSubscriptions[0].OpcMonitoredItems[0].RequestedSamplingInterval == 3000);
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
@@ -305,14 +296,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test that OpcSamplingInterval setting is kept when different as default setting.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "OpcSamplingInterval")]
         [MemberData(nameof(PnPlcOpcSamplingInterval2000))]
         public async Task OpcSamplingInterval2000DifferentThanDefaultAndIsPersisted(string testFilename, int configuredSessions,
                             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/opcsamplinginterval/{testFilename}";
@@ -335,10 +325,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 Assert.True(NodeConfiguration.OpcSessions[0].OpcSubscriptions[0].OpcMonitoredItems[0].RequestedSamplingInterval == 2000);
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
@@ -355,14 +345,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test that OpcSamplingInterval setting is not removed when default setting is the same.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "OpcSamplingInterval")]
         [MemberData(nameof(PnPlcOpcSamplingInterval2000))]
         public async Task OpcSamplingInterval2000SameAsDefaultAndIsPersisted(string testFilename, int configuredSessions,
                                     int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/opcsamplinginterval/{testFilename}";
@@ -385,10 +374,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 Assert.True(NodeConfiguration.OpcSessions[0].OpcSubscriptions[0].OpcMonitoredItems[0].RequestedSamplingInterval == 2000);
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
@@ -406,14 +395,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test that when no SkipFirst setting configured, it is not persisted.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "SkipFirst")]
         [MemberData(nameof(PnPlcSkipFirstUnset))]
         public async Task SkipFirstUnsetAndNotPersisted(string testFilename, int configuredSessions,
                             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/skipfirst/{testFilename}";
@@ -439,10 +427,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 Assert.True(NodeConfiguration.OpcSessions[0].OpcSubscriptions[0].OpcMonitoredItems[0].SkipFirst == OpcMonitoredItem.SkipFirstDefault);
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
@@ -459,14 +447,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test that SkipFirst setting is kept when different as default setting.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "SkipFirst")]
         [MemberData(nameof(PnPlcSkipFirstTrue))]
         public async Task SkipfirstTrueIsDifferentThanDefaultAndIsPersisted(string testFilename, int configuredSessions,
                             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/skipfirst/{testFilename}";
@@ -489,10 +476,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 Assert.True(NodeConfiguration.OpcSessions[0].OpcSubscriptions[0].OpcMonitoredItems[0].SkipFirst == true);
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
@@ -509,14 +496,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test that SkipFirst setting is kept when different as default setting.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "SkipFirst")]
         [MemberData(nameof(PnPlcSkipFirstFalse))]
         public async Task SkipfirstFalseIsDifferentThanDefaultAndIsPersisted(string testFilename, int configuredSessions,
                             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/skipfirst/{testFilename}";
@@ -539,10 +525,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 Assert.True(NodeConfiguration.OpcSessions[0].OpcSubscriptions[0].OpcMonitoredItems[0].SkipFirst == false);
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
@@ -559,14 +545,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test that SkipFirst setting is not removed when default setting is the same.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "SkipFirst")]
         [MemberData(nameof(PnPlcSkipFirstFalse))]
         public async Task SkipFirstFalseIsSameAsDefaultAndIsPersisted(string testFilename, int configuredSessions,
                                     int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/skipfirst/{testFilename}";
@@ -589,10 +574,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 Assert.True(NodeConfiguration.OpcSessions[0].OpcSubscriptions[0].OpcMonitoredItems[0].SkipFirst == false);
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
@@ -611,14 +596,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test that SkipFirst setting is not removed when default setting is the same.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "SkipFirst")]
         [MemberData(nameof(PnPlcSkipFirstTrue))]
         public async Task SkipFirstTrueSameAsDefaultAndIsPersisted(string testFilename, int configuredSessions,
                                     int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/skipfirst/{testFilename}";
@@ -641,10 +625,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 Assert.True(NodeConfiguration.OpcSessions[0].OpcSubscriptions[0].OpcMonitoredItems[0].SkipFirst == true);
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
@@ -663,14 +647,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test that when no HeartbeatInterval setting configured, it is not persisted.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "HeartbeatInterval")]
         [MemberData(nameof(PnPlcHeartbeatIntervalUnset))]
         public async Task HeartbeatIntervalUnsetAndNotPersisted(string testFilename, int configuredSessions,
                             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/heartbeatinterval/{testFilename}";
@@ -695,10 +678,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 Assert.True(NodeConfiguration.OpcSessions[0].OpcSubscriptions[0].OpcMonitoredItems[0].HeartbeatInterval == OpcMonitoredItem.HeartbeatIntervalDefault);
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
@@ -715,14 +698,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test that HeartbeatInterval setting is kept when different as default setting.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "HeartbeatInterval")]
         [MemberData(nameof(PnPlcHeartbeatInterval2))]
         public async Task HeartbeatInterval2IsDifferentThanDefaultAndIsPersisted(string testFilename, int configuredSessions,
                             int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/heartbeatinterval/{testFilename}";
@@ -745,10 +727,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 Assert.True(NodeConfiguration.OpcSessions[0].OpcSubscriptions[0].OpcMonitoredItems[0].HeartbeatInterval == 2);
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
@@ -765,14 +747,13 @@ namespace OpcPublisher
         /// <summary>
         /// Test that HeartbeatInterval setting is not removed when default setting is the same.
         /// </summary>
-        [SkippableTheory]
+        [Theory]
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "HeartbeatInterval")]
         [MemberData(nameof(PnPlcHeartbeatInterval2))]
         public async Task HeartbeatInterval2IsSameAsDefaultAndIsPersisted(string testFilename, int configuredSessions,
                                     int configuredSubscriptions, int configuredMonitoredItems)
         {
-            CheckWhetherToSkip();
             string methodName = UnitTestHelper.GetMethodName();
             string fqTempFilename = string.Empty;
             string fqTestFilename = $"{Directory.GetCurrentDirectory()}/testdata/heartbeatinterval/{testFilename}";
@@ -795,10 +776,10 @@ namespace OpcPublisher
                 Assert.True(NodeConfiguration.OpcSessions.Count == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSessionsConfigured == configuredSessions, "wrong # of sessions");
                 Assert.True(NodeConfiguration.NumberOfOpcSubscriptionsConfigured == configuredSubscriptions, "wrong # of subscriptions");
-                Assert.True(NodeConfiguration.NumberOfOpcMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
+                Assert.True(NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured == configuredMonitoredItems, "wrong # of monitored items");
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
-                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcMonitoredItemsToRemove}");
+                _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
                 Assert.True(NodeConfiguration.OpcSessions[0].OpcSubscriptions[0].OpcMonitoredItems[0].HeartbeatInterval == 2);
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
