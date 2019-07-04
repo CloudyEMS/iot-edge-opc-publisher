@@ -8,11 +8,12 @@ namespace OpcPublisher
 
         static IotEdgeIndicator()
         {
-            runsAsIotEdgeModule = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_IOTHUBHOSTNAME")) &&
-                    !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_MODULEGENERATIONID")) &&
-                    !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_WORKLOADURI")) &&
-                    !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_DEVICEID")) &&
-                    !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_MODULEID"));
+            runsAsIotEdgeModule = (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_IOTHUBHOSTNAME")) &&
+                 !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_MODULEGENERATIONID")) &&
+                 !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_WORKLOADURI")) &&
+                 !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_DEVICEID")) &&
+                 !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_MODULEID"))) ||
+                 !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("EdgeHubConnectionString"));
         }
 
         private static readonly bool runsAsIotEdgeModule;

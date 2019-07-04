@@ -43,7 +43,7 @@ namespace OpcPublisher.Crypto
 
         public IotEdgeCryptoProvider()
         {
-            var baseUrl = Environment.GetEnvironmentVariable("IOTEDGE_WORKLOADURI").TrimEnd('/');
+            var baseUrl = Environment.GetEnvironmentVariable("IOTEDGE_WORKLOADURI")?.TrimEnd('/');
             var moduleName = Environment.GetEnvironmentVariable("IOTEDGE_MODULEID");
             var moduleGenId = Environment.GetEnvironmentVariable("IOTEDGE_MODULEGENERATIONID");
             var apiVersion = "2018-06-28";

@@ -139,7 +139,9 @@ namespace OpcPublisher
                 {
                     WriteLine("IoTEdge detected.");
 
+#if !DEBUG
                     CryptoProvider = new IotEdgeCryptoProvider();
+#endif
 
                     // set IoT Edge specific defaults
                     HubProtocol = IotEdgeHubProtocolDefault;
