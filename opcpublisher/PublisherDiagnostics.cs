@@ -121,7 +121,7 @@ namespace OpcPublisher
                 diagnosticInfo.SentMessages = SentMessages;
                 diagnosticInfo.SentProperties = SentProperties;
                 diagnosticInfo.SentSettings = SentSettings;
-                diagnosticInfo.SentIoTCEvents = SentIoTCEvents;
+                diagnosticInfo.SentIoTCEvents = SentIoTcEvents;
                 diagnosticInfo.SentLastTime = SentLastTime;
                 diagnosticInfo.SentBytes = SentBytes;
                 diagnosticInfo.FailedMessages = FailedMessages;

@@ -161,9 +161,20 @@ namespace OpcPublisher
                 _hubCommunicationCts?.Cancel();
                 try
                 {
-                    _monitoredItemsProcessorTask?.Wait();
+                    _monitoredItemsProcessorThread?.Join();
+                    _monitoredPropertiesProcessorThread?.Join();
+                    _monitoredSettingsProcessorThread?.Join();
+                    _monitoredEventsProcessorThread?.Join();
+
                     _monitoredItemsDataQueue = null;
-                    _monitoredItemsProcessorTask = null;
+                    _monitoredPropertiesDataQueue = null;
+                    _monitoredSettingsDataQueue = null;
+                    _monitoredIoTcEventDataQueue = null;
+
+                    _monitoredItemsProcessorThread = null;
+                    _monitoredPropertiesProcessorThread = null;
+                    _monitoredSettingsProcessorThread = null;
+                    _monitoredEventsProcessorThread = null;
                     _hubClient?.Dispose();
                     _hubClient = null;
                 }
@@ -1415,10 +1426,11 @@ namespace OpcPublisher
                 _monitoredItemsDataQueue = new BlockingCollection<MessageData>(MonitoredItemsQueueCapacity);
 
                 // start up task to send telemetry to IoTHub
-                _monitoredItemsProcessorTask = null;
+                _monitoredItemsProcessorThread = null;
 
                 Logger.Information("Creating task process and batch monitored item data updates...");
-                _monitoredItemsProcessorTask = Task.Run(async () => await MonitoredItemsProcessorAsync(_shutdownToken).ConfigureAwait(false), _shutdownToken);
+                _monitoredItemsProcessorThread = new Thread(async () => await MonitoredItemsProcessorAsync(_shutdownToken));
+
                 return Task.FromResult(true);
             }
             catch (Exception e)
@@ -1980,7 +1992,7 @@ namespace OpcPublisher
         private static long _enqueueCount;
         private static long _enqueueFailureCount;
         private static BlockingCollection<MessageData> _monitoredItemsDataQueue = null;
-        private static Task _monitoredItemsProcessorTask;
+        private static Thread _monitoredItemsProcessorThread;
         private static IHubClient _hubClient;
         private CancellationTokenSource _hubCommunicationCts;
         private CancellationToken _shutdownToken;

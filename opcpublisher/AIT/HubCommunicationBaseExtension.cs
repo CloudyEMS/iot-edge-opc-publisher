@@ -1,5 +1,4 @@
-﻿using OpcPublisher;
-using Serilog.Core;
+﻿using Serilog.Core;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -18,7 +17,6 @@ using Opc.Ua;
 namespace OpcPublisher
 {
     using static OpcApplicationConfiguration;
-    using static OpcMonitoredItem;
     using static Program;
 
     public partial class HubCommunicationBase
@@ -31,15 +29,17 @@ namespace OpcPublisher
                 _logger.Information($"Property processing configured with a send interval of {DefaultSendIntervalSeconds} sec");
                 _monitoredPropertiesDataQueue = new BlockingCollection<MessageData>(MonitoredPropertiesQueueCapacity);
                 _monitoredSettingsDataQueue = new BlockingCollection<MessageData>(MonitoredSettingsQueueCapacity);
-                _monitoredIoTCEventDataQueue = new BlockingCollection<MessageData>(MonitoredSettingsIoTCEventCapacity);
+                _monitoredIoTcEventDataQueue = new BlockingCollection<MessageData>(MonitoredSettingsIoTcEventCapacity);
 
                 _logger.Information("Creating task process for monitored property data updates...");
-                MonitoredPropertiesProcessorTask = Task.Run(async () => await MonitoredPropertiesProcessorAsync(hubClient).ConfigureAwait(false), _shutdownToken);
-                _logger.Information("Creating task process for monitored setting data updates...");
-                MonitoredSettingsProcessorTask = Task.Run(async () => await MonitoredSettingsProcessor(hubClient), _shutdownToken);
-                _logger.Information("Creating task process for monitored event data updates...");
-                MonitoredEventsProcessorTask = Task.Run(async () => await MonitoredIoTCEventsProcessorAsync(hubClient, _shutdownToken), _shutdownToken);
+                _monitoredPropertiesProcessorThread = new Thread(async () => await MonitoredPropertiesProcessorAsync(hubClient));
                 
+                _logger.Information("Creating task process for monitored setting data updates...");
+                _monitoredSettingsProcessorThread = new Thread(async () => await MonitoredSettingsProcessor(hubClient));                
+                
+                _logger.Information("Creating task process for monitored event data updates...");
+                _monitoredEventsProcessorThread = new Thread(async () => await MonitoredIoTCEventsProcessorAsync(hubClient, _shutdownToken));
+
                 return Task.FromResult(true);
             }
             catch (Exception e)
@@ -94,7 +94,7 @@ namespace OpcPublisher
 
         public Task MonitoredSettingsProcessor(IHubClient hubClient)
         {
-            DateTime nextUpdateTime = DateTime.UtcNow + TimeSpan.FromSeconds(DefaultSendIntervalSeconds);
+            var nextUpdateTime = DateTime.UtcNow + TimeSpan.FromSeconds(DefaultSendIntervalSeconds);
 
             try
             {
@@ -150,9 +150,8 @@ namespace OpcPublisher
             uint hubMessageBufferSize = (HubMessageSize > 0 ? HubMessageSize : HubMessageSizeMax) - (uint)systemPropertyLength - jsonSquareBracketLength - (uint)applicationPropertyLength;
             byte[] hubMessageBuffer = new byte[hubMessageBufferSize];
             MemoryStream hubMessage = new MemoryStream(hubMessageBuffer);
-            DateTime nextSendTime = DateTime.UtcNow + TimeSpan.FromSeconds(DefaultSendIoTCIntervalSeconds);
-            double millisecondsTillNextSend = nextSendTime.Subtract(DateTime.UtcNow).TotalMilliseconds;
-            bool singleMessageSend = DefaultSendIoTCIntervalSeconds == 0 && HubMessageSize == 0;
+            DateTime nextSendTime = DateTime.UtcNow + TimeSpan.FromSeconds(DefaultSendIoTcIntervalSeconds);
+            bool singleMessageSend = DefaultSendIoTcIntervalSeconds == 0 && HubMessageSize == 0;
 
             using (hubMessage)
             {
@@ -171,12 +170,13 @@ namespace OpcPublisher
                     while (true)
                     {
                         // sanity check the send interval, compute the timeout and get the next monitored item message
-                        if (DefaultSendIoTCIntervalSeconds > 0)
+                        double millisecondsTillNextSend;
+                        if (DefaultSendIoTcIntervalSeconds > 0)
                         {
                             millisecondsTillNextSend = nextSendTime.Subtract(DateTime.UtcNow).TotalMilliseconds;
                             if (millisecondsTillNextSend < 0)
                             {
-                                MissedIoTCSendIntervalCount++;
+                                MissedIoTcSendIntervalCount++;
                                 // do not wait if we missed the send interval
                                 millisecondsTillNextSend = 0;
                             }
@@ -186,7 +186,7 @@ namespace OpcPublisher
                             // if we are in shutdown do not wait, else wait infinite if send interval is not set
                             millisecondsTillNextSend = ct.IsCancellationRequested ? 0 : Timeout.Infinite;
                         }
-                        bool gotItem = _monitoredIoTCEventDataQueue.TryTake(out MessageData messageData, (int)millisecondsTillNextSend, ct);
+                        var gotItem = _monitoredIoTcEventDataQueue.TryTake(out MessageData messageData, (int)millisecondsTillNextSend, ct);
                         EventMessageData eventMessageData = messageData?.EventMessageData;
 
                         // the two commandline parameter --ms (message size) and --si (send interval) control when data is sent to IoTHub/EdgeHub
@@ -219,7 +219,7 @@ namespace OpcPublisher
 
                                 // if batching is requested or we need to send at intervals, batch it otherwise send it right away
                                 needToBufferMessage = false;
-                                if (HubMessageSize > 0 || (HubMessageSize == 0 && DefaultSendIoTCIntervalSeconds > 0))
+                                if (HubMessageSize > 0 || (HubMessageSize == 0 && DefaultSendIoTcIntervalSeconds > 0))
                                 {
                                     // if there is still space to batch, do it. otherwise send the buffer and flag the message for later buffering
                                     if (hubMessage.Position + jsonMessageSize + 1 <= hubMessage.Capacity)
@@ -264,7 +264,7 @@ namespace OpcPublisher
                             // if we reached the send interval, but have nothing to send (only the opening square bracket is there), we continue
                             if (!gotItem && hubMessage.Position == 1)
                             {
-                                nextSendTime += TimeSpan.FromSeconds(DefaultSendIoTCIntervalSeconds);
+                                nextSendTime += TimeSpan.FromSeconds(DefaultSendIoTcIntervalSeconds);
                                 hubMessage.Position = 0;
                                 hubMessage.SetLength(0);
                                 if (!singleMessageSend)
@@ -292,19 +292,19 @@ namespace OpcPublisher
                                 encodedhubMessage.ContentType = CONTENT_TYPE_OPCUAJSON;
                                 encodedhubMessage.ContentEncoding = CONTENT_ENCODING_UTF8;
 
-                                nextSendTime += TimeSpan.FromSeconds(DefaultSendIoTCIntervalSeconds);
+                                nextSendTime += TimeSpan.FromSeconds(DefaultSendIoTcIntervalSeconds);
                                 try
                                 {
-                                    SentIoTCBytes += encodedhubMessage.GetBytes().Length;
+                                    SentIoTcBytes += encodedhubMessage.GetBytes().Length;
                                     await _hubClient.SendEventAsync(encodedhubMessage).ConfigureAwait(false);
-                                    SentIoTCEvents++;
+                                    SentIoTcEvents++;
                                     SentLastTime = DateTime.UtcNow;
                                     Logger.Debug($"Sending {encodedhubMessage.BodyStream.Length} bytes to hub.");
                                     Logger.Debug($"Message sent was: {jsonMessage}");
                                 }
                                 catch
                                 {
-                                    FailedIoTCMessages++;
+                                    FailedIoTcMessages++;
                                 }
 
                                 // reset the messaage
@@ -372,12 +372,12 @@ namespace OpcPublisher
         public void EnqueueEvent(MessageData message)
         {
             Interlocked.Increment(ref _enqueueCount);
-            if (_monitoredIoTCEventDataQueue.TryAdd(message))
+            if (_monitoredIoTcEventDataQueue.TryAdd(message))
                 return;
             Interlocked.Increment(ref _enqueueFailureCount);
             if (_enqueueFailureCount % 10000 == 0)
             {
-                _logger.Information($"The internal monitored setting message queue is above its capacity of {_monitoredIoTCEventDataQueue.BoundedCapacity}. We have already lost {_enqueueFailureCount} monitored item notifications:(");
+                _logger.Information($"The internal monitored setting message queue is above its capacity of {_monitoredIoTcEventDataQueue.BoundedCapacity}. We have already lost {_enqueueFailureCount} monitored item notifications:(");
             }
         }
 
@@ -389,21 +389,21 @@ namespace OpcPublisher
             try
             {
                 // build the JSON message for IoTCentral
-                StringBuilder _jsonStringBuilder = new StringBuilder();
-                StringWriter _jsonStringWriter = new StringWriter(_jsonStringBuilder);
-                using (JsonWriter _jsonWriter = new JsonTextWriter(_jsonStringWriter))
+                StringBuilder jsonStringBuilder = new StringBuilder();
+                StringWriter jsonStringWriter = new StringWriter(jsonStringBuilder);
+                using (JsonWriter jsonWriter = new JsonTextWriter(jsonStringWriter))
                 {
-                    await _jsonWriter.WriteStartObjectAsync().ConfigureAwait(false);
-                    await _jsonWriter.WritePropertyNameAsync(messageData.DisplayName).ConfigureAwait(false);
+                    await jsonWriter.WriteStartObjectAsync(_shutdownToken).ConfigureAwait(false);
+                    await jsonWriter.WritePropertyNameAsync(messageData.DisplayName, _shutdownToken).ConfigureAwait(false);
                     var eventValues = string.Join(",", messageData.EventValues.Select(s => new {
                         s.Name,
                         s.Value
                     }));
-                    await _jsonWriter.WriteValueAsync(eventValues).ConfigureAwait(false);
-                    await _jsonWriter.WriteEndObjectAsync().ConfigureAwait(false);
-                    await _jsonWriter.FlushAsync().ConfigureAwait(false);
+                    await jsonWriter.WriteValueAsync(eventValues, _shutdownToken).ConfigureAwait(false);
+                    await jsonWriter.WriteEndObjectAsync(_shutdownToken).ConfigureAwait(false);
+                    await jsonWriter.FlushAsync(_shutdownToken).ConfigureAwait(false);
                 }
-                return _jsonStringBuilder.ToString();
+                return jsonStringBuilder.ToString();
             }
             catch (Exception e)
             {
@@ -418,14 +418,13 @@ namespace OpcPublisher
         public virtual async Task<MethodResponse> HandlePublishEventsMethodAsync(MethodRequest methodRequest,
             object userContext)
         {
-            string logPrefix = "HandlePublishEventsMethodAsync:";
-            bool useSecurity = true;
+            var logPrefix = "HandlePublishEventsMethodAsync:";
+            var useSecurity = true;
             Uri endpointUri = null;
             PublishNodesMethodRequestModel publishEventsMethodData = null;
-            HttpStatusCode statusCode = HttpStatusCode.OK;
-            HttpStatusCode nodeStatusCode = HttpStatusCode.InternalServerError;
-            List<string> statusResponse = new List<string>();
-            string statusMessage = string.Empty;
+            var statusCode = HttpStatusCode.OK;
+            var statusResponse = new List<string>();
+            string statusMessage;
             try
             {
                 _logger.Debug($"{logPrefix} called");
@@ -481,17 +480,19 @@ namespace OpcPublisher
                         // add a new session.
                         if (opcSession == null)
                         {
-                            var authentificationMode = publishEventsMethodData.OpcAuthenticationMode.HasValue
-                                ? publishEventsMethodData.OpcAuthenticationMode.Value
-                                : OpcAuthenticationMode.Anonymous;
+                            if (publishEventsMethodData?.OpcAuthenticationMode != null)
+                            {
+                                var authenticationMode = publishEventsMethodData.OpcAuthenticationMode == null
+                                    ? publishEventsMethodData.OpcAuthenticationMode.Value
+                                    : OpcAuthenticationMode.Anonymous;
 
-                            var encryptedCredentials = publishEventsMethodData.OpcAuthenticationMode.HasValue
-                                ? await Crypto.EncryptedNetworkCredential.FromPlainCredential(publishEventsMethodData.UserName, publishEventsMethodData.Password)
-                                : null;
+                                var encryptedCredentials = await Crypto.EncryptedNetworkCredential.FromPlainCredential(publishEventsMethodData.UserName, publishEventsMethodData.Password);
 
-                            // create new session info.
-                            opcSession = new OpcSession(endpointUri?.OriginalString, useSecurity, OpcSessionCreationTimeout,
-                                authentificationMode, encryptedCredentials);
+                                // create new session info.
+                                opcSession = new OpcSession(endpointUri?.OriginalString, useSecurity, OpcSessionCreationTimeout,
+                                    authenticationMode, encryptedCredentials);
+                            }
+
                             NodeConfiguration.OpcSessions.Add(opcSession);
                             Logger.Information($"{logPrefix} No matching session found for endpoint '{endpointUri?.OriginalString}'. Requested to create a new one.");
                         }
@@ -503,7 +504,7 @@ namespace OpcPublisher
                             {
                                 NodeId nodeId = null;
                                 ExpandedNodeId expandedNodeId = null;
-                                bool isNodeIdFormat = true;
+                                bool isNodeIdFormat;
                                 try
                                 {
                                     if (eventNode.Id.Contains("nsu=", StringComparison.InvariantCulture))
@@ -528,6 +529,7 @@ namespace OpcPublisher
 
                                 try
                                 {
+                                    HttpStatusCode nodeStatusCode;
                                     if (isNodeIdFormat)
                                     {
                                         // add the event node info to the subscription with the default publishing interval, execute synchronously
@@ -603,7 +605,7 @@ namespace OpcPublisher
                 }
                 catch (AggregateException e)
                 {
-                    foreach (Exception ex in e.InnerExceptions)
+                    foreach (var ex in e.InnerExceptions)
                     {
                         Logger.Error(ex, $"{logPrefix} Exception");
                     }
@@ -629,8 +631,8 @@ namespace OpcPublisher
             AdjustResponse(ref statusResponse);
 
             // build response
-            string resultString = JsonConvert.SerializeObject(statusResponse);
-            byte[] result = Encoding.UTF8.GetBytes(resultString);
+            var resultString = JsonConvert.SerializeObject(statusResponse);
+            var result = Encoding.UTF8.GetBytes(resultString);
             if (result.Length > MaxResponsePayloadLength)
             {
                 Logger.Error($"{logPrefix} Response size is too long");
@@ -646,19 +648,18 @@ namespace OpcPublisher
         /// </summary>
         public virtual Task<MethodResponse> HandleGetConfiguredEventsOnEndpointMethodAsync(MethodRequest methodRequest, object userContext)
         {
-            string logPrefix = "HandleGetConfiguredNodesOnEndpointMethodAsync:";
+            const string logPrefix = "HandleGetConfiguredNodesOnEndpointMethodAsync:";
             Uri endpointUri = null;
             GetConfiguredNodesOnEndpointMethodRequestModel getConfiguredEventNodesOnEndpointMethodRequest = null;
             uint nodeConfigVersion = 0;
             GetConfiguredEventNodesOnEndpointMethodResponseModel getConfiguredEventNodesOnEndpointMethodResponse = new GetConfiguredEventNodesOnEndpointMethodResponseModel();
             uint actualNodeCount = 0;
             uint availableEventNodeCount = 0;
-            uint requestedEventNodeCount = 0;
-            List<OpcEventOnEndpointModel> opcEvents = new List<OpcEventOnEndpointModel>();
+            var opcEvents = new List<OpcEventOnEndpointModel>();
             uint startIndex = 0;
-            HttpStatusCode statusCode = HttpStatusCode.OK;
-            List<string> statusResponse = new List<string>();
-            string statusMessage = string.Empty;
+            var statusCode = HttpStatusCode.OK;
+            var statusResponse = new List<string>();
+            string statusMessage;
 
             try
             {
@@ -720,34 +721,29 @@ namespace OpcPublisher
                     if (statusCode == HttpStatusCode.OK)
                     {
                         // set count
-                        requestedEventNodeCount = configuredEventNodesOnEndpointCount - startIndex;
+                        var requestedEventNodeCount = configuredEventNodesOnEndpointCount - startIndex;
                         availableEventNodeCount = configuredEventNodesOnEndpointCount - startIndex;
                         actualNodeCount = Math.Min(requestedEventNodeCount, availableEventNodeCount);
 
                         // generate response
-                        string publishedNodesString;
-                        byte[] publishedNodesByteArray;
                         while (true)
                         {
-                            publishedNodesString = JsonConvert.SerializeObject(opcEvents.GetRange((int)startIndex, (int)actualNodeCount));
-                            publishedNodesByteArray = Encoding.UTF8.GetBytes(publishedNodesString);
+                            string publishedNodesString = JsonConvert.SerializeObject(opcEvents.GetRange((int)startIndex, (int)actualNodeCount));
+                            var publishedNodesByteArray = Encoding.UTF8.GetBytes(publishedNodesString);
                             if (publishedNodesByteArray.Length > MaxResponsePayloadLength)
                             {
                                 actualNodeCount /= 2;
                                 continue;
                             }
-                            else
-                            {
-                                break;
-                            }
+
+                            break;
                         }
                     }
                 }
             }
 
             // build response
-            byte[] result = null;
-            string resultString = null;
+            string resultString;
             if (statusCode == HttpStatusCode.OK)
             {
                 getConfiguredEventNodesOnEndpointMethodResponse.ContinuationToken = null;
@@ -758,9 +754,9 @@ namespace OpcPublisher
 
                 getConfiguredEventNodesOnEndpointMethodResponse.EventNodes.AddRange(opcEvents
                     .GetRange((int)startIndex, (int)actualNodeCount).Select(n =>
-                        new OpcEventOnEndpointModel(new EventConfigurationModel(endpointUri.OriginalString,
+                        new OpcEventOnEndpointModel(new EventConfigurationModel(endpointUri?.OriginalString,
                             null, n.Id, n.DisplayName, n.SelectClauses, n.WhereClause, n.IotCentralEventPublishMode))));
-                getConfiguredEventNodesOnEndpointMethodResponse.EndpointUrl = endpointUri.OriginalString;
+                getConfiguredEventNodesOnEndpointMethodResponse.EndpointUrl = endpointUri?.OriginalString;
                 resultString = JsonConvert.SerializeObject(getConfiguredEventNodesOnEndpointMethodResponse);
                 Logger.Information($"{logPrefix} Success returning {actualNodeCount} event node(s) of {availableEventNodeCount} (start: {startIndex}) (node config version: {nodeConfigVersion:X8})!");
             }
@@ -768,7 +764,7 @@ namespace OpcPublisher
             {
                 resultString = JsonConvert.SerializeObject(statusResponse);
             }
-            result = Encoding.UTF8.GetBytes(resultString);
+            byte[] result = Encoding.UTF8.GetBytes(resultString);
             if (result.Length > MaxResponsePayloadLength)
             {
                 Logger.Error($"{logPrefix} Response size is too long");
@@ -782,7 +778,7 @@ namespace OpcPublisher
         /// <summary>
         /// Specifies the send interval in seconds after which a message is sent to the hub.
         /// </summary>
-        public static int DefaultSendIoTCIntervalSeconds { get; set; } = 10;
+        public static int DefaultSendIoTcIntervalSeconds { get; set; } = 10;
         
         /// <summary>
         /// Number of times we were not able to make the settings send interval, because too high load.
@@ -797,22 +793,17 @@ namespace OpcPublisher
         /// <summary>
         /// Number of times we were not able to make the IoTCentral send interval, because too high load.
         /// </summary>
-        public static long MissedIoTCSendIntervalCount { get; set; }
+        public static long MissedIoTcSendIntervalCount { get; set; }
 
         /// <summary>
         /// Number of times we were not able to sent the event message as IoT Central event to the cloud.
         /// </summary>
-        public static long FailedIoTCMessages { get; set; }
-        
-        /// <summary>
-        /// Time when we sent the last IoT Central event message.
-        /// </summary>
-        public static DateTime SentIoTCLastTime { get; set; }
-        
+        public static long FailedIoTcMessages { get; set; }
+
         /// <summary>
         /// Number of payload bytes we sent to the cloud.
         /// </summary>
-        public static long SentIoTCBytes { get; set; }
+        public static long SentIoTcBytes { get; set; }
 
         /// <summary>
         /// Number of properties we sent to the cloud using deviceTwin
@@ -827,7 +818,7 @@ namespace OpcPublisher
         /// <summary>
         /// Number of properties we sent to the cloud using deviceTwin
         /// </summary>
-        public static long SentIoTCEvents { get; set; }
+        public static long SentIoTcEvents { get; set; }
 
         /// <summary>
         /// Specifies the queue capacity for monitored properties.
@@ -842,27 +833,26 @@ namespace OpcPublisher
         /// <summary>
         /// Specifies the queue capacity for monitored iot central events.
         /// </summary>
-        public static int MonitoredSettingsIoTCEventCapacity { get; set; } = 8192;
+        public static int MonitoredSettingsIoTcEventCapacity { get; set; } = 8192;
 
         /// <summary>
         /// Number of events in the monitored items queue.
         /// </summary>
-        public static long MonitoredPropertiesQueueCount => _monitoredPropertiesDataQueue == null ? 0 : _monitoredPropertiesDataQueue.Count;
+        public static long MonitoredPropertiesQueueCount => _monitoredPropertiesDataQueue?.Count ?? 0;
 
         /// <summary>
         /// Number of events in the monitored items queue.
         /// </summary>
-        public static long MonitoredSettingsQueueCount => _monitoredSettingsDataQueue == null ? 0 : _monitoredSettingsDataQueue.Count;
+        public static long MonitoredSettingsQueueCount => _monitoredSettingsDataQueue?.Count ?? 0;
 
         public static TransportType SendHubProtocol { get; set; } = IotHubProtocolDefault;
-        private Task MonitoredPropertiesProcessorTask { get; set; }
-        private Task MonitoredSettingsProcessorTask { get; set; }
-        private Task MonitoredEventsProcessorTask { get; set; }
-        private Task MonitoredCommandsProcessorTask { get; set; }
+        private Thread _monitoredPropertiesProcessorThread { get; set; }
+        private Thread _monitoredSettingsProcessorThread { get; set; }
+        private Thread _monitoredEventsProcessorThread { get; set; }
 
-        private static BlockingCollection<MessageData> _monitoredPropertiesDataQueue = null;
-        private static BlockingCollection<MessageData> _monitoredSettingsDataQueue = null;
-        private static BlockingCollection<MessageData> _monitoredIoTCEventDataQueue = null;
+        private static BlockingCollection<MessageData> _monitoredPropertiesDataQueue;
+        private static BlockingCollection<MessageData> _monitoredSettingsDataQueue;
+        private static BlockingCollection<MessageData> _monitoredIoTcEventDataQueue;
         private static Logger _logger;
     }
 }
