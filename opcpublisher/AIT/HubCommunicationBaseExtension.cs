@@ -33,12 +33,15 @@ namespace OpcPublisher
 
                 _logger.Information("Creating task process for monitored property data updates...");
                 _monitoredPropertiesProcessorThread = new Thread(async () => await MonitoredPropertiesProcessorAsync(hubClient));
+                _monitoredPropertiesProcessorThread.Start();
                 
                 _logger.Information("Creating task process for monitored setting data updates...");
-                _monitoredSettingsProcessorThread = new Thread(async () => await MonitoredSettingsProcessor(hubClient));                
+                _monitoredSettingsProcessorThread = new Thread(async () => await MonitoredSettingsProcessor(hubClient));
+                _monitoredSettingsProcessorThread.Start();              
                 
                 _logger.Information("Creating task process for monitored event data updates...");
                 _monitoredEventsProcessorThread = new Thread(async () => await MonitoredIoTCEventsProcessorAsync(hubClient, _shutdownToken));
+                _monitoredEventsProcessorThread.Start();
 
                 return Task.FromResult(true);
             }
