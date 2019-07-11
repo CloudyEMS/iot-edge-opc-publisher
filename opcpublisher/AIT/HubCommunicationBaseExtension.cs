@@ -32,15 +32,15 @@ namespace OpcPublisher
                 _monitoredIoTcEventDataQueue = new BlockingCollection<MessageData>(MonitoredSettingsIoTcEventCapacity);
 
                 _logger.Information("Creating task process for monitored property data updates...");
-                _monitoredPropertiesProcessorThread = new Thread(async () => await MonitoredPropertiesProcessorAsync(hubClient));
+                _monitoredPropertiesProcessorThread = new Thread(() => MonitoredPropertiesProcessorAsync(hubClient, _shutdownToken));
                 _monitoredPropertiesProcessorThread.Start();
                 
                 _logger.Information("Creating task process for monitored setting data updates...");
-                _monitoredSettingsProcessorThread = new Thread(async () => await MonitoredSettingsProcessor(hubClient));
+                _monitoredSettingsProcessorThread = new Thread(() => MonitoredSettingsProcessor(hubClient, _shutdownToken));
                 _monitoredSettingsProcessorThread.Start();              
                 
                 _logger.Information("Creating task process for monitored event data updates...");
-                _monitoredEventsProcessorThread = new Thread(async () => await MonitoredIoTCEventsProcessorAsync(hubClient, _shutdownToken));
+                _monitoredEventsProcessorThread = new Thread(() => _ = MonitoredIoTCEventsProcessorAsync(hubClient, _shutdownToken));
                 _monitoredEventsProcessorThread.Start();
 
                 return Task.FromResult(true);
@@ -52,13 +52,13 @@ namespace OpcPublisher
             }
         }
 
-        public async Task MonitoredPropertiesProcessorAsync(IHubClient hubClient)
+        public async void MonitoredPropertiesProcessorAsync(IHubClient hubClient, CancellationToken ct)
         {
             var nextSendTime = DateTime.UtcNow + TimeSpan.FromSeconds(DefaultSendIntervalSeconds);
 
             try
             {
-                while (true)
+                while (!ct.IsCancellationRequested)
                 {
                     // sanity check the send interval, compute the timeout and get the next monitored item message
                     double millisecondsTillNextSend;
@@ -95,13 +95,13 @@ namespace OpcPublisher
             }
         }
 
-        public Task MonitoredSettingsProcessor(IHubClient hubClient)
+        public void MonitoredSettingsProcessor(IHubClient hubClient, CancellationToken ct)
         {
             var nextUpdateTime = DateTime.UtcNow + TimeSpan.FromSeconds(DefaultSendIntervalSeconds);
 
             try
             {
-                while (true)
+                while (!ct.IsCancellationRequested)
                 {
                     // sanity check the send interval, compute the timeout and get the next monitored item message
                     double millisecondsTillNextUpdate;
@@ -170,7 +170,7 @@ namespace OpcPublisher
                     {
                         hubMessage.Write(Encoding.UTF8.GetBytes("["), 0, 1);
                     }
-                    while (true)
+                    while (!ct.IsCancellationRequested)
                     {
                         // sanity check the send interval, compute the timeout and get the next monitored item message
                         double millisecondsTillNextSend;

@@ -774,8 +774,15 @@ namespace OpcPublisher
                 {
                     Logger.Information("Publisher is running. Press CTRL-C to quit.");
 
-                    // wait for Ctrl-C
-                    await Task.Delay(Timeout.Infinite, ShutdownTokenSource.Token).ConfigureAwait(false);
+                    try
+                    {
+                        // wait for Ctrl-C
+                        await Task.Delay(Timeout.Infinite, ShutdownTokenSource.Token).ConfigureAwait(false);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        // do nothing
+                    }
                 }
 
                 Logger.Information("");

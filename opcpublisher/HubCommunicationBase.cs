@@ -1429,7 +1429,8 @@ namespace OpcPublisher
                 _monitoredItemsProcessorThread = null;
 
                 Logger.Information("Creating task process and batch monitored item data updates...");
-                _monitoredItemsProcessorThread = new Thread(async () => await MonitoredItemsProcessorAsync(_shutdownToken));
+                _monitoredItemsProcessorThread = new Thread(() => _ = MonitoredItemsProcessorAsync(_shutdownToken));
+                _monitoredItemsProcessorThread.Start();
 
                 return Task.FromResult(true);
             }
@@ -1753,7 +1754,7 @@ namespace OpcPublisher
                     {
                         hubMessage.Write(Encoding.UTF8.GetBytes("["), 0, 1);
                     }
-                    while (true)
+                    while (!_shutdownToken.IsCancellationRequested)
                     {
                         // sanity check the send interval, compute the timeout and get the next monitored item message
                         if (DefaultSendIntervalSeconds > 0)
