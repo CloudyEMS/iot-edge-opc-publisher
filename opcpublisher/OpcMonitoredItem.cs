@@ -112,7 +112,7 @@ namespace OpcPublisher
         /// <summary>
         /// Apply the patterns specified in the telemetry configuration on the message data fields.
         /// </summary>
-        public void ApplyPatterns(EndpointTelemetryConfigurationModel telemetryConfiguration)
+        public new void ApplyPatterns(EndpointTelemetryConfigurationModel telemetryConfiguration)
         {
             base.ApplyPatterns(telemetryConfiguration);
 
@@ -176,7 +176,7 @@ namespace OpcPublisher
         /// <summary>
         /// Apply the patterns specified in the telemetry configuration on the message data fields.
         /// </summary>
-        public void ApplyPatterns(EndpointTelemetryConfigurationModel telemetryConfiguration)
+        public new void ApplyPatterns(EndpointTelemetryConfigurationModel telemetryConfiguration)
         {
             base.ApplyPatterns(telemetryConfiguration);
 

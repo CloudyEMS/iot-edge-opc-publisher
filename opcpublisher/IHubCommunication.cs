@@ -112,7 +112,7 @@ namespace OpcPublisher
         /// <summary>
         /// Dequeue monitored item notification messages, batch them for send (if needed) and send them to IoTHub.
         /// </summary>
-        Task MonitoredItemsProcessorAsync(CancellationToken ct);
+        Task MonitoredItemsProcessorAsync();
 
         /// <summary>
         /// Exit the application.
