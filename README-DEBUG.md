@@ -4,11 +4,11 @@
 ## Build
 1. Build Docker Image in Debug Mode
 ```
-docker build -f .\docker\linux\amd64\Dockerfile -t localhost:5000/opcpublisher:0.0.1-amd64 .
+docker build -f .\docker\linux\amd64\Dockerfile.debug -t localhost:5000/opcpublisher:0.0.1-amd64.debug .
 ```
 2. Push Image to local Registry (If you dont have a local registry read README of ModuleConfigurator first)
 ```
-docker push localhost:5000/opcpublisher:0.0.1-amd64
+docker push localhost:5000/opcpublisher:0.0.1-amd64.debug
 ```
 
 ## Debug
