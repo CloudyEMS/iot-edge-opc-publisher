@@ -13,8 +13,10 @@ namespace OpcPublisher
     using Microsoft.Azure.Devices.Client;
     using Newtonsoft.Json.Linq;
     using System;
+    using System.Globalization;
     using System.Net;
     using System.Text;
+    using System.Web;
 
 
     /// <summary>
@@ -349,7 +351,7 @@ namespace OpcPublisher
                                 desiredVersion = desiredProperties["$version"],
                                 message
                             };
-                            await updateReportedPropertiesAsync(reportedProperties);
+                            await UpdateReportedPropertiesAsync(reportedProperties);
                         }
                     }
                 }
@@ -376,11 +378,10 @@ namespace OpcPublisher
                 {
                     foreach (var opcMonitoredItem in opcSubscription.OpcMonitoredItems)
                     {
-                        if(opcMonitoredItem.DisplayName == methodRequest.Name)
+                        if (opcMonitoredItem.DisplayName == methodRequest.Name)
                         {
-                            List<object> inputArguments = new List<object>();
-                            var commandParametersJObject = JObject.Parse(methodRequest.DataAsJson)["commandParameters"];
-                            var parameterDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(commandParametersJObject.ToString());
+                            var inputArguments = new List<object>();
+                            var parameterDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(methodRequest.DataAsJson);
                             var session = opcSession.OpcUaClientSession.GetSession();
 
                             var references = session.FetchReferences(opcMonitoredItem.ConfigNodeId);
@@ -390,10 +391,14 @@ namespace OpcPublisher
                             {
                                 foreach (var inputArgument in ((Opc.Ua.ExtensionObject[])nodeValue.Value))
                                 {
+                                    var paramKey = HttpUtility.UrlDecode(param.Key);
+
                                     var opcUaArgument = (Argument)inputArgument.Body;
-                                    if (param.Key != opcUaArgument.Name)
+                                    if (string.Compare(paramKey, opcUaArgument.Name, true, CultureInfo.InvariantCulture) != 0)
+                                    {
                                         continue;
-                                    //Int datatypes
+                                    }
+
                                     if (opcUaArgument.DataType == DataTypeIds.UInt16)
                                     {
                                         inputArguments.Add(new Variant(Convert.ToUInt16(param.Value)));
@@ -418,27 +423,22 @@ namespace OpcPublisher
                                     {
                                         inputArguments.Add(new Variant(Convert.ToInt64(param.Value)));
                                     }
-                                    //String datatypes
                                     else if (opcUaArgument.DataType == DataTypeIds.String || 
                                         opcUaArgument.DataType == DataTypeIds.LocalizedText ||
                                         opcUaArgument.DataType == DataTypeIds.XmlElement ||
                                         opcUaArgument.DataType == DataTypeIds.QualifiedName ||
-                                        opcUaArgument.DataType == DataTypeIds.DateTime
-                                        )
+                                        opcUaArgument.DataType == DataTypeIds.DateTime)
                                     {
                                         inputArguments.Add(new Variant(param.Value));
                                     }
-                                    //Enum types based on EnumIndex
                                     else if(opcUaArgument.DataType == DataTypeIds.ServerState ||
                                         opcUaArgument.DataType == DataTypeIds.RedundancySupport ||
                                         opcUaArgument.DataType == DataTypeIds.NamingRuleType ||
                                         opcUaArgument.DataType == DataTypeIds.IdType ||
-                                        opcUaArgument.DataType == DataTypeIds.NodeClass
-                                        )
+                                        opcUaArgument.DataType == DataTypeIds.NodeClass)
                                     {
                                         inputArguments.Add(new Variant(Convert.ToInt32(param.Value)));
                                     }
-                                    //Default -> normal string
                                     else
                                     {
                                         var errorMessage = $"{logPrefix}: DataType {opcUaArgument.DataType.ToString()} is not implemented as input parameter yet. " +
@@ -450,39 +450,64 @@ namespace OpcPublisher
                                     }
                                 }
                             }
-                            try
+
+                            if (string.IsNullOrEmpty(resultString))
                             {
-                                opcSubscription.OpcUaClientSubscription.Subscription.Session.Call("ns=0;i=2253", opcMonitoredItem.ConfigNodeId, inputArguments.ToArray());
-                                if (string.IsNullOrEmpty(resultString))
-                                {
-                                    resultString = $"Successfully executed method {methodRequest.Name}";
-                                    resultStatusCode = HttpStatusCode.OK;
+                                try
+                                { 
+                                    opcSubscription.OpcUaClientSubscription.Subscription.Session.Browse(
+                                        null,
+                                        null,
+                                        opcMonitoredItem.ConfigNodeId,
+                                        0u,
+                                        BrowseDirection.Inverse,
+                                        ReferenceTypeIds.HierarchicalReferences,
+                                        true,
+                                        (uint)NodeClass.Object,
+                                        out _,
+                                        out var parentNodes);
+
+                                    var parentNode = parentNodes.FirstOrDefault();
+                                    if (parentNode == null)
+                                    {
+                                        resultString = "Failed to execute method";
+                                        resultStatusCode = HttpStatusCode.InternalServerError;
+                                    }
+                                    else
+                                    {
+                                        var methodResult = opcSubscription.OpcUaClientSubscription.Subscription.Session.Call(
+                                            new NodeId(parentNode.NodeId.Identifier, parentNode.NodeId.NamespaceIndex), 
+                                            opcMonitoredItem.ConfigNodeId, inputArguments.ToArray());
+
+                                        var methodResultString = string.Join(Environment.NewLine,
+                                            methodResult.Where(r => r is string).Select(r => r as string));
+
+                                        resultString = $"Successfully executed method {methodRequest.Name}{Environment.NewLine}Result:{Environment.NewLine}{methodResultString}";
+                                        resultStatusCode = HttpStatusCode.OK;
+                                    }
                                 }
-                            }
-                            catch(Exception ex)
-                            {
-                                resultString = ex.Message;
-                                resultStatusCode = HttpStatusCode.InternalServerError;
+                                catch(Exception ex)
+                                {
+                                    resultString = ex.Message;
+                                    resultStatusCode = HttpStatusCode.InternalServerError;
+                                }
                             }
                         }
                     }
                 }
             }
 
-            //Response messages in IoT Central must be sent via reported properties
+            // Response messages in IoT Central must be sent via reported properties
             var reportedProperties = new TwinCollection();
-            reportedProperties["GetMonitoredItems"] = new {
-                value = $"Response - HTTP{resultStatusCode}: " + resultString
+            reportedProperties[methodRequest.Name] = new {
+                value = resultString
             };
-            await updateReportedPropertiesAsync(reportedProperties);
+            await UpdateReportedPropertiesAsync(reportedProperties);
 
-            var responseJson = JsonConvert.SerializeObject("Response:" + resultString);
-            byte[] result = Encoding.UTF8.GetBytes(responseJson);
-            MethodResponse methodResponse = new MethodResponse(result, (int)resultStatusCode);
-            return methodResponse;
+            return new MethodResponse(null, (int)resultStatusCode);
         }
 
-        private async Task updateReportedPropertiesAsync(TwinCollection reportedProperties)
+        private async Task UpdateReportedPropertiesAsync(TwinCollection reportedProperties)
         {
             if (_iotHubClient == null)
             {
