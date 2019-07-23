@@ -784,7 +784,7 @@ namespace OpcPublisher
                                                 IotCentralItemPublishMode = monitoredItem.IotCentralItemPublishMode
                                             };
                                             //IoT Central currently not supporting whitespaces in FieldName, so we encode all display names with url encode
-                                            opcNodeOnEndpoint.DisplayName = HttpUtility.UrlEncode(opcNodeOnEndpoint.DisplayName);
+                                            opcNodeOnEndpoint.DisplayName = HttpUtility.UrlEncode(HttpUtility.UrlDecode(opcNodeOnEndpoint.DisplayName));
                                             publisherConfigurationFileEntry.OpcNodes.Add(opcNodeOnEndpoint);
                                         }
                                     }
