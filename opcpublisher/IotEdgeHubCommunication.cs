@@ -9,6 +9,8 @@
     /// </summary>
     public class IotEdgeHubCommunication : HubCommunicationBase
     {
+        private readonly IHubClient _hubClient;
+
         /// <summary>
         /// Get the singleton.
         /// </summary>
@@ -32,9 +34,9 @@
         {
             // connect to IoT Edge hub
             Logger.Information($"Create module client using '{HubProtocol}' for communication.");
-            IHubClient hubClient = HubClient.CreateModuleClientFromEnvironment(HubProtocol, Logger);
+            _hubClient = HubClient.CreateModuleClientFromEnvironment(HubProtocol, Logger);
 
-            if (!InitHubCommunicationAsync(hubClient, registerMethodHandlers, listenMessages).Result)
+            if (!InitHubCommunicationAsync(_hubClient, registerMethodHandlers, listenMessages).Result)
             {
                 string errorMessage = $"Cannot create module client. Exiting...";
                 Logger.Fatal(errorMessage);

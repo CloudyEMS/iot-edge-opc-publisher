@@ -219,46 +219,66 @@ namespace OpcPublisher
             return _iotHubClient.SendEventAsync(message);
         }
 
-        public Task SendPropertyAsync(MessageData message, CancellationToken ct)
+        public async Task SendPropertyAsync(MessageData message, CancellationToken ct)
         {
-            if (_iotHubClient == null)
-            {
-                TwinCollection reportedPropertiesEdge = new TwinCollection();
-                if (message.EventMessageData != null && message.EventMessageData.EventValues.Count > 0)
-                {
-                    foreach (var eventValue in message.EventMessageData.EventValues)
-                    {
-                        if (eventValue.IotCentralEventPublishMode == IotCentralEventPublishMode.Property)
-                        {
-                            reportedPropertiesEdge[eventValue.Name] = eventValue.Value;
-                        }
-                    }
-                }
-                else
-                {
-                    reportedPropertiesEdge[message.DataChangeMessageData.DisplayName] = message.DataChangeMessageData.Value;
-                }
-
-                return _edgeHubClient.UpdateReportedPropertiesAsync(reportedPropertiesEdge, ct);
-            }
-
-            TwinCollection reportedProperties = new TwinCollection();
-            if (message.EventMessageData != null)
+            TwinCollection reportedPropertiesEdge = new TwinCollection();
+            if (message.EventMessageData != null && message.EventMessageData.EventValues.Count > 0)
             {
                 foreach (var eventValue in message.EventMessageData.EventValues)
                 {
                     if (eventValue.IotCentralEventPublishMode == IotCentralEventPublishMode.Property)
                     {
-                        reportedProperties[eventValue.Name] = eventValue.Value;
+                        reportedPropertiesEdge[eventValue.Name] = eventValue.Value;
                     }
                 }
             }
             else
             {
-                reportedProperties[message.DataChangeMessageData.DisplayName] = message.DataChangeMessageData.Value;
+                reportedPropertiesEdge[message.DataChangeMessageData.DisplayName] = message.DataChangeMessageData.Value;
             }
+            
+            if (_iotHubClient == null)
+            {   
+                await _edgeHubClient.UpdateReportedPropertiesAsync(reportedPropertiesEdge, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                await _iotHubClient.UpdateReportedPropertiesAsync(reportedPropertiesEdge, ct).ConfigureAwait(false);
+            }
+        }
 
-            return _iotHubClient.UpdateReportedPropertiesAsync(reportedProperties, ct);
+        public async Task SendSettingAsync(MessageData message, CancellationToken ct)
+        {
+            TwinCollection reportedPropertiesEdge = new TwinCollection();
+            if (message.EventMessageData != null && message.EventMessageData.EventValues.Count > 0)
+            {
+                foreach (var eventValue in message.EventMessageData.EventValues)
+                {
+                    if (eventValue.IotCentralEventPublishMode == IotCentralEventPublishMode.Property)
+                    {
+                        reportedPropertiesEdge[eventValue.Name] = new JObject();
+                        reportedPropertiesEdge[eventValue.Name]["value"] = eventValue.Value;
+                        reportedPropertiesEdge[eventValue.Name]["status"] = "completed";
+                        reportedPropertiesEdge[eventValue.Name]["message"] = "Processed";
+                    }
+                }
+            }
+            else
+            {
+                reportedPropertiesEdge[message.DataChangeMessageData.DisplayName] = new JObject();
+                reportedPropertiesEdge[message.DataChangeMessageData.DisplayName]["value"] = message.DataChangeMessageData.Value;
+                reportedPropertiesEdge[message.DataChangeMessageData.DisplayName]["status"] = "completed";
+                reportedPropertiesEdge[message.DataChangeMessageData.DisplayName]["message"] = "Processed";
+            }
+            
+            if (_iotHubClient == null)
+            {   
+                await _edgeHubClient.UpdateReportedPropertiesAsync(reportedPropertiesEdge, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                await _iotHubClient.UpdateReportedPropertiesAsync(reportedPropertiesEdge, ct).ConfigureAwait(false);
+            }
         }
 
         public Task SendIoTCEventAsync(Message message, CancellationToken ct)
@@ -283,10 +303,11 @@ namespace OpcPublisher
                         foreach (var opcMonitoredItem in opcSubscription.OpcMonitoredItems)
                         {
                             var key = opcMonitoredItem.DisplayName;
-                            if (!MonitoredSettingsCollection.ContainsKey(key) || !desiredProperties.Contains(key))
+                            if (!desiredProperties.Contains(key))
                             {
                                 continue;
                             }
+
                             //Handle OPC UA Property overwrite and acknowledge setting change
                             //Get JSON Value of desired property which is reported by setting change from IoT Central
                             var jsonValue = new Newtonsoft.Json.Linq.JObject(desiredProperties[key])
@@ -294,7 +315,13 @@ namespace OpcPublisher
 
                             //Create a new WriteValueCollection to write the new information to OPC UA Server
                             var valuesToWrite = new WriteValueCollection();
-                            if (opcMonitoredItem.IdAsNodeId.IdType == IdType.Numeric)
+                            
+                            var session = opcSession.OpcUaClientSession.GetSession();
+
+                            var references = session.FetchReferences(opcMonitoredItem.ConfigNodeId);
+                            var typeId = references.FirstOrDefault()?.TypeId ?? DataTypeIds.String;
+
+                            if (typeId.IdType == IdType.Numeric)
                             {
                                 valuesToWrite.Add(
                                    new WriteValue {
@@ -415,13 +442,23 @@ namespace OpcPublisher
                                     {
                                         inputArguments.Add(new Variant(Convert.ToInt16(param.Value)));
                                     }
-                                    else if (opcUaArgument.DataType == DataTypeIds.Int32)
+                                    else if (opcUaArgument.DataType == DataTypeIds.Int32 ||
+                                        opcUaArgument.DataType == DataTypeIds.Integer ||
+                                        opcUaArgument.DataType == DataTypeIds.Number)
                                     {
                                         inputArguments.Add(new Variant(Convert.ToInt32(param.Value)));
                                     }
                                     else if (opcUaArgument.DataType == DataTypeIds.Int64)
                                     {
                                         inputArguments.Add(new Variant(Convert.ToInt64(param.Value)));
+                                    }
+                                    else if (opcUaArgument.DataType == DataTypeIds.Float)
+                                    {
+                                        inputArguments.Add(new Variant(Convert.ToSingle(param.Value)));
+                                    }
+                                    else if (opcUaArgument.DataType == DataTypeIds.Double)
+                                    {
+                                        inputArguments.Add(new Variant(Convert.ToDouble(param.Value)));
                                     }
                                     else if (opcUaArgument.DataType == DataTypeIds.String || 
                                         opcUaArgument.DataType == DataTypeIds.LocalizedText ||
@@ -480,7 +517,7 @@ namespace OpcPublisher
                                             opcMonitoredItem.ConfigNodeId, inputArguments.ToArray());
 
                                         var methodResultString = string.Join(Environment.NewLine,
-                                            methodResult.Where(r => r is string).Select(r => r as string));
+                                            methodResult.Select(r => r.ToString()));
 
                                         resultString = $"Successfully executed method {methodRequest.Name}{Environment.NewLine}Result:{Environment.NewLine}{methodResultString}";
                                         resultStatusCode = HttpStatusCode.OK;

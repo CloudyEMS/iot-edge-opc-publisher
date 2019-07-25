@@ -162,8 +162,6 @@ namespace OpcPublisher
                 try
                 {
                     _monitoredItemsDataQueue = null;
-                    _monitoredPropertiesDataQueue = null;
-                    _monitoredSettingsDataQueue = null;
                     _iotcEventsProcessor?.Dispose();
 
                     _monitoredItemsProcessorTask = null;
@@ -233,7 +231,6 @@ namespace OpcPublisher
 
                 if (!listenMessages) return true;
                 Logger.Debug($"Init D2C message processing");
-                await InitExtendedProcessingAsync(Logger).ConfigureAwait(false);
                 return await InitMessageProcessingAsync().ConfigureAwait(false);
 
             }
@@ -1414,16 +1411,28 @@ namespace OpcPublisher
                 // show config
                 Logger.Information($"Message processing and hub communication configured with a send interval of {DefaultSendIntervalSeconds} sec and a message buffer size of {HubMessageSize} bytes.");
 
-                _iotcEventsProcessor = new IoTCEventsProcessor(_logger, _hubClient, IotCentralMode, HubMessageSize, HubMessageSizeMax, DefaultSendIntervalSeconds, _shutdownToken);
-
                 // create the queue for monitored items
                 _monitoredItemsDataQueue = new BlockingCollection<MessageData>(MonitoredItemsQueueCapacity);
 
-                // start up task to send telemetry to IoTHub
-                _monitoredItemsProcessorTask = null;
-
                 Logger.Information("Creating task process and batch monitored item data updates...");
-                _monitoredItemsProcessorTask = Task.Run(() => _ = MonitoredItemsProcessorAsync(), _shutdownToken);
+
+                _monitoredItemsProcessorTask = Task.Factory.StartNew(async () => await MonitoredItemsProcessorAsync().ConfigureAwait(false),
+                    _shutdownToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+
+                _iotcEventsProcessor = new IoTCEventsProcessor(_logger, _hubClient, IotCentralMode, HubMessageSize, HubMessageSizeMax, DefaultSendIntervalSeconds, _shutdownToken);
+                
+                _monitoredEventsProcessorTask = Task.Factory.StartNew(async () => await _iotcEventsProcessor.MonitoredIoTCEventsProcessorAsync().ConfigureAwait(false),
+                    _shutdownToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+
+                _settingsProcessor = new SettingsProcessor(_logger, _hubClient, IotCentralMode, DefaultSendIntervalSeconds, _shutdownToken);
+                
+                _monitoredSettingsProcessorTask = Task.Factory.StartNew(async () => await _settingsProcessor.MonitoredSettingsProcessorAsync().ConfigureAwait(false),
+                    _shutdownToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                    
+                _propertiesProcessor = new PropertiesProcessor(_logger, _hubClient, IotCentralMode, DefaultSendIntervalSeconds, _shutdownToken);
+                
+                _monitoredPropertiesProcessorTask = Task.Factory.StartNew(async () => await _propertiesProcessor.MonitoredPropertiesProcessorAsync().ConfigureAwait(false),
+                    _shutdownToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
                 return Task.FromResult(true);
             }
@@ -1747,6 +1756,7 @@ namespace OpcPublisher
                     {
                         hubMessage.Write(Encoding.UTF8.GetBytes("["), 0, 1);
                     }
+
                     while (!_shutdownToken.IsCancellationRequested)
                     {
                         // sanity check the send interval, compute the timeout and get the next monitored item message
@@ -1765,10 +1775,6 @@ namespace OpcPublisher
                             // if we are in shutdown do not wait, else wait infinite if send interval is not set
                             millisecondsTillNextSend = _shutdownToken.IsCancellationRequested ? 0 : Timeout.Infinite;
                         }
-
-                        await _iotcEventsProcessor.MonitoredIoTCEventsProcessorAsync();
-                        await MonitoredSettingsProcessorAsync();
-                        await MonitoredPropertiesProcessorAsync();
 
                         bool gotItem = _monitoredItemsDataQueue.TryTake(out MessageData messageData, (int)millisecondsTillNextSend, _shutdownToken);
                         DataChangeMessageData dataChangeMessageData = messageData?.DataChangeMessageData;
@@ -1991,6 +1997,11 @@ namespace OpcPublisher
         private static long _enqueueCount;
         private static long _enqueueFailureCount;
         private IoTCEventsProcessor _iotcEventsProcessor;
+        private Task _monitoredEventsProcessorTask;
+        private static SettingsProcessor _settingsProcessor;
+        private Task _monitoredSettingsProcessorTask;
+        private static PropertiesProcessor _propertiesProcessor;
+        private Task _monitoredPropertiesProcessorTask;
         private static BlockingCollection<MessageData> _monitoredItemsDataQueue = null;
         private static Task _monitoredItemsProcessorTask;
         private static IHubClient _hubClient;

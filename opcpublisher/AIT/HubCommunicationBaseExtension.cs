@@ -27,8 +27,7 @@ namespace OpcPublisher
             {
                 _logger = logger;
                 
-                _monitoredPropertiesDataQueue = new BlockingCollection<MessageData>(MonitoredPropertiesQueueCapacity);
-                _monitoredSettingsDataQueue = new BlockingCollection<MessageData>(MonitoredSettingsQueueCapacity);
+                
 
                 return Task.FromResult(true);
             }
@@ -39,79 +38,11 @@ namespace OpcPublisher
             }
         }
 
-        public async Task MonitoredPropertiesProcessorAsync()
-        {
-            try
-            {
-                if (!IotCentralMode) return;
+        public void EnqueueProperty(MessageData message) => _propertiesProcessor.EnqueueProperty(message);
 
-                var gotItem = _monitoredPropertiesDataQueue.TryTake(out MessageData messageData, DefaultSendIntervalSeconds, _shutdownToken);
+        public void EnqueueEvent(MessageData message) => _iotcEventsProcessor.EnqueueEvent(message);
 
-                if (!gotItem || messageData == null) return;
-                await _hubClient.SendPropertyAsync(messageData, _shutdownToken);
-                SentProperties++;
-            }
-            catch (Exception e)
-            {
-                _logger.Error(e, "Error while processing monitored properties.");
-                throw;
-            }
-        }
-
-        public Task MonitoredSettingsProcessorAsync()
-        {
-            try
-            {
-                if (!IotCentralMode) return Task.CompletedTask;
-
-                var gotItem = _monitoredSettingsDataQueue.TryTake(out var messageData);
-
-                if (!gotItem || messageData == null) return Task.CompletedTask;
-                if (!HubClient.MonitoredSettingsCollection.TryAdd(
-                    messageData.DataChangeMessageData.DisplayName, messageData.DataChangeMessageData.Value))
-                {
-                    _logger.Error("Error while storing a new monitored setting.");
-                }
-
-                SentSettings++;
-                return Task.CompletedTask;
-            }
-            catch (Exception e)
-            {
-                _logger.Error(e, "Error while processing monitored settings.");
-                throw;
-            }
-        }
-
-        public void EnqueueProperty(MessageData message)
-        {
-            Interlocked.Increment(ref _enqueueCount);
-            if (_monitoredPropertiesDataQueue.TryAdd(message) == false)
-            {
-                Interlocked.Increment(ref _enqueueFailureCount);
-                if (_enqueueFailureCount % 10000 == 0)
-                {
-                    _logger.Information($"The internal monitored property message queue is above its capacity of {_monitoredPropertiesDataQueue.BoundedCapacity}. We have already lost {_enqueueFailureCount} monitored item notifications:(");
-                }
-            }
-        }
-
-        public void EnqueueSetting(MessageData message)
-        {
-            Interlocked.Increment(ref _enqueueCount);
-            if (_monitoredSettingsDataQueue.TryAdd(message))
-                return;
-            Interlocked.Increment(ref _enqueueFailureCount);
-            if (_enqueueFailureCount % 10000 == 0)
-            {
-                _logger.Information($"The internal monitored setting message queue is above its capacity of {_monitoredSettingsDataQueue.BoundedCapacity}. We have already lost {_enqueueFailureCount} monitored item notifications:(");
-            }
-        }
-
-        public void EnqueueEvent(MessageData message)
-        {
-            _iotcEventsProcessor.EnqueueEvent(message);
-        }
+        public void EnqueueSetting(MessageData message) => _settingsProcessor.EnqueueSetting(message);
 
         /// <summary>
         /// Handle publish event node method call.
@@ -475,56 +406,15 @@ namespace OpcPublisher
             Logger.Information($"{logPrefix} completed with result {statusCode.ToString()}");
             return Task.FromResult(methodResponse);
         }
-        
-        /// <summary>
-        /// Number of times we were not able to make the settings send interval, because too high load.
-        /// </summary>
-        public static long MissedSettingSendIntervalCount { get; set; }
 
-        /// <summary>
-        /// Number of times we were not able to make the property send interval, because too high load.
-        /// </summary>
-        public static long MissedPropertySendIntervalCount { get; set; }
-
-        /// <summary>
-        /// Number of properties we sent to the cloud using deviceTwin
-        /// </summary>
-        public static long SentProperties { get; set; }
-
-        /// <summary>
-        /// Number of settings we sent to the cloud using deviceTwin
-        /// </summary>
-        public static long SentSettings { get; set; }
-
+        public static int MonitoredSettingsQueueCapacity => _settingsProcessor.MonitoredSettingsQueueCapacity;
+        public static long MonitoredSettingsQueueCount => _settingsProcessor.MonitoredSettingsQueueCount;
+        public static long SentSettings => _settingsProcessor.SentSettings;
+        public static long SentProperties => _propertiesProcessor.SentProperties;
         public static long SentIoTcEvents => IoTCEventsProcessor.SentIoTcEvents;
-
-        /// <summary>
-        /// Specifies the queue capacity for monitored properties.
-        /// </summary>
-        public static int MonitoredPropertiesQueueCapacity { get; set; } = 8192;
-
-        /// <summary>
-        /// Specifies the queue capacity for monitored settings.
-        /// </summary>
-        public static int MonitoredSettingsQueueCapacity { get; set; } = 8192;
-
-        /// <summary>
-        /// Number of events in the monitored items queue.
-        /// </summary>
-        public static long MonitoredPropertiesQueueCount => _monitoredPropertiesDataQueue?.Count ?? 0;
-
-        /// <summary>
-        /// Number of events in the monitored items queue.
-        /// </summary>
-        public static long MonitoredSettingsQueueCount => _monitoredSettingsDataQueue?.Count ?? 0;
-
+        public static int MonitoredPropertiesQueueCapacity => _propertiesProcessor.MonitoredPropertiesQueueCapacity;
+        public static long MonitoredPropertiesQueueCount => _propertiesProcessor.MonitoredPropertiesQueueCount;
         public static TransportType SendHubProtocol { get; set; } = IotHubProtocolDefault;
-        private Thread _monitoredPropertiesProcessorThread { get; set; }
-        private Thread _monitoredSettingsProcessorThread { get; set; }
-        private Thread _monitoredEventsProcessorThread { get; set; }
-
-        private static BlockingCollection<MessageData> _monitoredPropertiesDataQueue;
-        private static BlockingCollection<MessageData> _monitoredSettingsDataQueue;
         private static Logger _logger;
     }
 }

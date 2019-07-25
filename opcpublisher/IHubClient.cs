@@ -64,6 +64,11 @@ namespace OpcPublisher
         /// Insert/Update a property from device twin (reported property collection) and sends it to device hub
         /// </summary>
         Task SendPropertyAsync(MessageData message, CancellationToken ct);
+        
+        /// <summary>
+        /// Insert/Update a property from device twin (reported property collection) and sends it to device hub
+        /// </summary>
+        Task SendSettingAsync(MessageData message, CancellationToken ct);
 
         /// <summary>
         /// Insert/Update a OPC UA Event and sends it as IoT Central Event to device hub

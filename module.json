@@ -1,0 +1,19 @@
+{
+    "$schema-version": "0.0.1",
+    "description": "",
+    "image": {
+        "repository": "localhost:5000/opcpublisher",
+        "tag": {
+            "version": "0.0.1",
+            "platforms": {
+                "amd64": "./docker/linux/amd64/Dockerfile", 
+                "amd64.debug": "./docker/linux/amd64/Dockerfile.debug",
+                "arm32v7": "./docker/linux/arm32v7/Dockerfile",
+                "windows-amd64": "./docker/windows/amd64/Dockerfile"
+            }
+        },
+        "buildOptions": [],
+        "contextPath": "./"
+    },
+    "language": "csharp"
+}

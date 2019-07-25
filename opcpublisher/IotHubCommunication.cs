@@ -152,7 +152,8 @@
             // connect as device client
             Logger.Information($"Create device client using '{HubProtocol}' for communication.");
             IotHubClient = HubClient.CreateDeviceClientFromConnectionString(DeviceConnectionString, HubProtocol, Logger);
-            if (!InitHubCommunicationAsync(IotHubClient, true, true).Result)
+            
+            if (!InitHubCommunicationAsync(IotHubClient, true, true).GetAwaiter().GetResult())
             {
                 string errorMessage = $"Cannot create IoTHub client. Exiting...";
                 Logger.Fatal(errorMessage);

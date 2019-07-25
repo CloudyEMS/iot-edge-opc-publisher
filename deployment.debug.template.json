@@ -1,0 +1,90 @@
+{
+  "modulesContent": {
+    "$edgeAgent": {
+      "properties.desired": {
+        "schemaVersion": "1.0",
+        "runtime": {
+          "type": "docker",
+          "settings": {
+            "minDockerVersion": "v1.25",
+            "loggingOptions": "",
+            "registryCredentials": {}
+          }
+        },
+        "systemModules": {
+          "edgeAgent": {
+            "type": "docker",
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-agent:1.0",
+              "createOptions": "{}"
+            }
+          },
+          "edgeHub": {
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-hub:1.0",
+              "createOptions": "{\"HostConfig\":{\"PortBindings\":{\"5671/tcp\":[{\"HostPort\":\"4671\"}],\"8883/tcp\":[{\"HostPort\":\"6883\"}],\"443/tcp\":[{\"HostPort\":\"443\"}]}}}"
+            }
+          }
+        },
+        "modules": {
+          "moduleconfigurator": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "env": {
+              "MESSAGE_ROUTER_URL": {
+                "value": "http://messagerouter:8080"
+              }
+            },
+            "settings": {
+              "image": "localhost:5000/moduleconfigurator:0.0.1-amd64.debug",
+              "createOptions": "{\"HostConfig\":{\"PortBindings\":{\"8080/tcp\":[{\"HostPort\":\"8080\"}]}}}"
+            }
+          },
+          "opcpublisher": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "localhost:5000/opcpublisher:0.0.1-amd64.debug",
+              "createOptions": "{\"Hostname\":\"publisher\",\"Cmd\":[\"edgepublisher\",\"--pf=/appdata/publishednodes.json\",\"--di=60\",\"--ll=debug\",\"--to\",\"--aa\",\"--ki\",\"30\",\"--si\",\"0\",\"--ms\",\"0\",\"--ic\"],\"HostConfig\":{\"PortBindings\":{\"62222/tcp\":[{\"HostPort\":\"62222\"}],\"1883/tcp\":[{\"HostPort\":\"1883\"}],\"5672/tcp\":[{\"HostPort\":\"5672\"}]},\"Binds\":[\"c:\\\\iotedge:/appdata/\"],\"ExtraHosts\":[\"localhost:127.0.0.1\"]}}"
+            }
+          },
+          "messagerouter": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "env": {
+              "IotHubOwnerConnectionString": {
+                "value": ""
+              }
+            },
+            "settings": {
+              "image": "localhost:5000/messagerouter:0.0.1-amd64.debug",
+              "createOptions": "{\"Hostname\":\"messagerouter\",\"Cmd\":[\"--clean\"],\"HostConfig\":{\"Binds\":[\"c:\\\\iotedge:/appdata/\"],\"PortBindings\":{\"8080/tcp\":[{\"HostPort\":\"8090\"}]}}}"
+            }
+          }
+        }
+      }
+    },
+    "$edgeHub": {
+      "properties.desired": {
+        "schemaVersion": "1.0",
+        "routes": {
+          "ModuleConfiguratorToIoTHub": "FROM /messages/modules/moduleconfigurator/outputs/* INTO $upstream",
+          "MessageRouterToIoTHub": "FROM /messages/modules/messagerouter/outputs/* INTO $upstream",
+          "CatchAll": "FROM /messages/* WHERE NOT IS_DEFINED(messagerouter_ignore) INTO BrokeredEndpoint(\"/modules/messagerouter/inputs/catchAll\")"
+        },
+        "storeAndForwardConfiguration": {
+          "timeToLiveSecs": 7200
+        }
+      }
+    }
+  }
+}

@@ -86,7 +86,7 @@ namespace OpcPublisher
             // do cleanup
             Dispose(true);
             GC.SuppressFinalize(this);
-        }
+        } 
 
         /// <summary>
         /// Fetch diagnostic data.
