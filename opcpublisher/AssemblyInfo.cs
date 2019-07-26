@@ -7,3 +7,5 @@
 [assembly: System.Reflection.AssemblyProduct("opcpublisher")]
 [assembly: System.Reflection.AssemblyTitle("opcpublisher")]
 [assembly: System.Reflection.AssemblyVersion("2.3.0.0")]
+
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests")]

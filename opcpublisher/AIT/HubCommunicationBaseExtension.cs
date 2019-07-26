@@ -21,23 +21,6 @@ namespace OpcPublisher
 
     public partial class HubCommunicationBase
     {
-        public Task<bool> InitExtendedProcessingAsync(Logger logger)
-        {
-            try
-            {
-                _logger = logger;
-                
-                
-
-                return Task.FromResult(true);
-            }
-            catch (Exception e)
-            {
-                _logger.Error(e, "Failure initializing property processing.");
-                return Task.FromResult(false);
-            }
-        }
-
         public void EnqueueProperty(MessageData message) => _propertiesProcessor.EnqueueProperty(message);
 
         public void EnqueueEvent(MessageData message) => _iotcEventsProcessor.EnqueueEvent(message);

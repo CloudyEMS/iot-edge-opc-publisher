@@ -1408,6 +1408,8 @@ namespace OpcPublisher
         {
             try
             {
+                _logger = Logger;
+
                 // show config
                 Logger.Information($"Message processing and hub communication configured with a send interval of {DefaultSendIntervalSeconds} sec and a message buffer size of {HubMessageSize} bytes.");
 

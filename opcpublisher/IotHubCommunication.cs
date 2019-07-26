@@ -74,7 +74,7 @@
         /// <summary>
         /// Ctor for the singleton class.
         /// </summary>
-        private IotHubCommunication()
+        internal IotHubCommunication()
         {
             // check if we got an IoTHub owner connection string
             if (string.IsNullOrEmpty(IotHubOwnerConnectionString))
