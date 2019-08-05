@@ -62,6 +62,16 @@ namespace OpcPublisher
         Task<MethodResponse> HandleGetConfiguredEventsOnEndpointMethodAsync(MethodRequest methodRequest, object userContext);
 
         /// <summary>
+        /// Handle method call to get the raw json of opc publisher configuration.
+        /// </summary>
+        Task<MethodResponse> HandleGetOpcPublishedConfigurationAsJson(MethodRequest methodRequest, object userContext);
+
+        /// <summary>
+        /// Handle method call to save the raw json of opc publisher configuration.
+        /// </summary>
+        Task<MethodResponse> HandleSaveOpcPublishedConfigurationAsJson(MethodRequest methodRequest, object userContext);
+
+        /// <summary>
         /// Handle method call to get diagnostic information.
         /// </summary>
         Task<MethodResponse> HandleGetDiagnosticInfoMethodAsync(MethodRequest methodRequest, object userContext);

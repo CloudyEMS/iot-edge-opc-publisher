@@ -2,6 +2,7 @@
 using Opc.Ua;
 using System;
 using System.Collections.Generic;
+using Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.AIT;
 using Newtonsoft.Json.Converters;
 using opcpublisher.AIT;
 
@@ -20,7 +21,8 @@ namespace OpcPublisher
     public class OpcNodeOnEndpointModel
     {
         public OpcNodeOnEndpointModel(string id, string expandedNodeId = null, int? opcSamplingInterval = null, int? opcPublishingInterval = null,
-            string displayName = null, int? heartbeatInterval = null, bool? skipFirst = null, IotCentralItemPublishMode? iotCentralItemPublishMode = null)
+            string displayName = null, int? heartbeatInterval = null, bool? skipFirst = null, IotCentralItemPublishMode? iotCentralItemPublishMode = null, 
+            OpcPublisherPublishState opcPublisherPublishState = OpcPublisherPublishState.None)
         {
             Id = id;
             ExpandedNodeId = expandedNodeId;
@@ -30,6 +32,7 @@ namespace OpcPublisher
             HeartbeatInterval = heartbeatInterval;
             SkipFirst = skipFirst;
             IotCentralItemPublishMode = iotCentralItemPublishMode;
+            OpcPublisherPublishState = opcPublisherPublishState;
         }
 
         // Id can be:
@@ -56,10 +59,15 @@ namespace OpcPublisher
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public bool? SkipFirst { get; set; }
 
+        [JsonProperty("OpcPublisherPublishState")]
+        [JsonConverter(typeof(StringEnumConverter))]
+        public OpcPublisherPublishState OpcPublisherPublishState { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         [JsonConverter(typeof(StringEnumConverter))]
         public IotCentralItemPublishMode? IotCentralItemPublishMode { get; set; }
     }
+
     /// <summary>
     /// Class describing the nodes which should be published.
     /// </summary>
@@ -724,6 +732,13 @@ namespace OpcPublisher
         public List<WhereClauseElement> WhereClause;
 
         /// <summary>
+        /// The OpcPublisherPublishState represents the current state of OPC Publisher
+        /// </summary>
+        [JsonProperty("OpcPublisherPublishState")]
+        [JsonConverter(typeof(StringEnumConverter))]
+        public OpcPublisherPublishState OpcPublisherPublishState { get; set; }
+
+        /// <summary>
         /// Ctor of an object.
         /// </summary>
         public OpcEventOnEndpointModel()
@@ -737,13 +752,14 @@ namespace OpcPublisher
         /// <summary>
         /// Ctor of an object using a configuration object.
         /// </summary>
-        public OpcEventOnEndpointModel(EventConfigurationModel eventConfiguration)
+        public OpcEventOnEndpointModel(EventConfigurationModel eventConfiguration, OpcPublisherPublishState opcPublisherPublishState = OpcPublisherPublishState.None)
         {
             Id = eventConfiguration.Id;
             DisplayName = eventConfiguration.DisplayName;
             IotCentralEventPublishMode = eventConfiguration.IotCentralEventPublishMode;
             SelectClauses = eventConfiguration.SelectClauses;
             WhereClause = eventConfiguration.WhereClause;
+            OpcPublisherPublishState = opcPublisherPublishState;
         }
 
     }

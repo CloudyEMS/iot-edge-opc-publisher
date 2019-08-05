@@ -12,7 +12,9 @@ using System.Threading.Tasks;
 using Microsoft.Azure.Devices.Client;
 using Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.AIT;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Opc.Ua;
+using OpcPublisher.Crypto;
 
 namespace OpcPublisher
 {
@@ -36,6 +38,10 @@ namespace OpcPublisher
             var logPrefix = "HandlePublishEventsMethodAsync:";
             var useSecurity = true;
             Uri endpointUri = null;
+
+            OpcAuthenticationMode? desiredAuthenticationMode = null;
+            EncryptedNetworkCredential desiredEncryptedCredential = null;
+
             PublishNodesMethodRequestModel publishEventsMethodData = null;
             var statusCode = HttpStatusCode.OK;
             var statusResponse = new List<string>();
@@ -47,6 +53,16 @@ namespace OpcPublisher
                 endpointUri = new Uri(publishEventsMethodData.EndpointUrl);
                 useSecurity = publishEventsMethodData.UseSecurity;
 
+                if (publishEventsMethodData.OpcAuthenticationMode == OpcAuthenticationMode.UsernamePassword)
+                {
+                    if (string.IsNullOrWhiteSpace(publishEventsMethodData.UserName) && string.IsNullOrWhiteSpace(publishEventsMethodData.Password))
+                    {
+                        throw new ArgumentException($"If {nameof(publishEventsMethodData.OpcAuthenticationMode)} is set to '{OpcAuthenticationMode.UsernamePassword}', you have to specify '{nameof(publishEventsMethodData.UserName)}' and/or '{nameof(publishEventsMethodData.Password)}'.");
+                    }
+
+                    desiredAuthenticationMode = OpcAuthenticationMode.UsernamePassword;
+                    desiredEncryptedCredential = await EncryptedNetworkCredential.FromPlainCredential(publishEventsMethodData.UserName, publishEventsMethodData.Password);
+                }
                 if (publishEventsMethodData.OpcEvents.Count != 1)
                 {
                     statusMessage =
@@ -95,21 +111,41 @@ namespace OpcPublisher
                         // add a new session.
                         if (opcSession == null)
                         {
-                            if (publishEventsMethodData?.OpcAuthenticationMode != null)
+                            // if the no OpcAuthenticationMode is specified, we create the new session with "Anonymous" auth
+                            if (!desiredAuthenticationMode.HasValue)
                             {
-                                var authenticationMode = publishEventsMethodData.OpcAuthenticationMode == null
-                                    ? publishEventsMethodData.OpcAuthenticationMode.Value
-                                    : OpcAuthenticationMode.Anonymous;
-
-                                var encryptedCredentials = await Crypto.EncryptedNetworkCredential.FromPlainCredential(publishEventsMethodData.UserName, publishEventsMethodData.Password);
-
-                                // create new session info.
-                                opcSession = new OpcSession(endpointUri?.OriginalString, useSecurity, OpcSessionCreationTimeout,
-                                    authenticationMode, encryptedCredentials);
+                                desiredAuthenticationMode = OpcAuthenticationMode.Anonymous;
                             }
-
+                            
+                            // create new session info.
+                            opcSession = new OpcSession(endpointUri.OriginalString, useSecurity, OpcSessionCreationTimeout, desiredAuthenticationMode.Value, desiredEncryptedCredential);
                             NodeConfiguration.OpcSessions.Add(opcSession);
-                            Logger.Information($"{logPrefix} No matching session found for endpoint '{endpointUri?.OriginalString}'. Requested to create a new one.");
+                            Logger.Information($"{logPrefix} No matching session found for endpoint '{endpointUri.OriginalString}'. Requested to create a new one.");
+                        }
+                        else 
+                        {
+                            // a session already exists, so we check, if we need to change authentication settings. This is only true, if the payload contains an OpcAuthenticationMode-Property
+                            if (desiredAuthenticationMode.HasValue)
+                            {
+                                bool reconnectRequired = false;
+
+                                if (opcSession.OpcAuthenticationMode != desiredAuthenticationMode.Value)
+                                {
+                                    opcSession.OpcAuthenticationMode = desiredAuthenticationMode.Value;
+                                    reconnectRequired = true;
+                                }
+
+                                if (opcSession.EncryptedAuthCredential != desiredEncryptedCredential)
+                                {
+                                    opcSession.EncryptedAuthCredential = desiredEncryptedCredential;
+                                    reconnectRequired = true;
+                                }
+
+                                if (reconnectRequired)
+                                {
+                                    await opcSession.Reconnect();
+                                }
+                            }
                         }
 
                         // process all nodes
@@ -314,7 +350,8 @@ namespace OpcPublisher
                 {
                     foreach (var configFileEntry in configFileEntries)
                     {
-                        opcEvents.AddRange(configFileEntry.OpcEvents);
+                        if(configFileEntry?.OpcEvents != null)
+                            opcEvents.AddRange(configFileEntry?.OpcEvents);
                     }
                     uint configuredEventNodesOnEndpointCount = (uint)opcEvents.Count();
 
@@ -339,6 +376,7 @@ namespace OpcPublisher
                         var requestedEventNodeCount = configuredEventNodesOnEndpointCount - startIndex;
                         availableEventNodeCount = configuredEventNodesOnEndpointCount - startIndex;
                         actualNodeCount = Math.Min(requestedEventNodeCount, availableEventNodeCount);
+                        opcEvents.ForEach(x => x.OpcPublisherPublishState = OpcPublisherPublishState.Published);
 
                         // generate response
                         while (true)
@@ -367,10 +405,24 @@ namespace OpcPublisher
                     getConfiguredEventNodesOnEndpointMethodResponse.ContinuationToken = (ulong)nodeConfigVersion << 32 | actualNodeCount + startIndex;
                 }
 
-                getConfiguredEventNodesOnEndpointMethodResponse.EventNodes.AddRange(opcEvents
-                    .GetRange((int)startIndex, (int)actualNodeCount).Select(n =>
-                        new OpcEventOnEndpointModel(new EventConfigurationModel(endpointUri?.OriginalString,
-                            null, n.Id, n.DisplayName, n.SelectClauses, n.WhereClause, n.IotCentralEventPublishMode))));
+                getConfiguredEventNodesOnEndpointMethodResponse.EventNodes
+                    .AddRange(opcEvents
+                        .GetRange((int)startIndex, (int)actualNodeCount)
+                        .Select(n =>
+                            new OpcEventOnEndpointModel(
+                                new EventConfigurationModel(
+                                    endpointUri?.OriginalString,
+                                    null, 
+                                    n.Id, 
+                                    n.DisplayName, 
+                                    n.SelectClauses, 
+                                    n.WhereClause, 
+                                    n.IotCentralEventPublishMode
+                                ),
+                                OpcPublisherPublishState.Published
+                            )
+                        )
+                    );
                 getConfiguredEventNodesOnEndpointMethodResponse.EndpointUrl = endpointUri?.OriginalString;
                 resultString = JsonConvert.SerializeObject(getConfiguredEventNodesOnEndpointMethodResponse);
                 Logger.Information($"{logPrefix} Success returning {actualNodeCount} event node(s) of {availableEventNodeCount} (start: {startIndex}) (node config version: {nodeConfigVersion:X8})!");
@@ -388,6 +440,74 @@ namespace OpcPublisher
             MethodResponse methodResponse = new MethodResponse(result, (int)statusCode);
             Logger.Information($"{logPrefix} completed with result {statusCode.ToString()}");
             return Task.FromResult(methodResponse);
+        }
+
+        public virtual async Task<MethodResponse> HandleGetOpcPublishedConfigurationAsJson(MethodRequest methodRequest, object userContext)
+        {
+            const string logPrefix = "HandleGetOpcPublishedConfigurationAsJson:";
+            var statusCode = HttpStatusCode.OK;
+            GetOpcPublishedConfigurationMethodResponseModel getOpcPublishedConfigurationMethodResponseModel = new GetOpcPublishedConfigurationMethodResponseModel();
+            var statusResponse = new List<string>();
+
+            var configJson = await NodeConfiguration.ReadConfigAsyncAsJson();
+            if (configJson == null)
+            {
+                var statusMessage = $"Error while reading opc publisher json configuration.";
+                Logger.Information($"{logPrefix} there is no valid configuration file to return.");
+                statusResponse.Add(statusMessage);
+                statusCode = HttpStatusCode.NotFound;
+            }
+
+            getOpcPublishedConfigurationMethodResponseModel.ConfigurationJson = configJson;
+                // build response
+            string resultString;
+            if (statusCode == HttpStatusCode.OK)
+            {
+                resultString = JsonConvert.SerializeObject(getOpcPublishedConfigurationMethodResponseModel);
+                Logger.Information($"{logPrefix} Success returning current JSON configuration of OPC Publisher!");
+            }
+            else
+            {
+                resultString = JsonConvert.SerializeObject(statusResponse);
+            }
+            byte[] result = Encoding.UTF8.GetBytes(resultString);
+            if (result.Length > MaxResponsePayloadLength)
+            {
+                Logger.Error($"{logPrefix} Response size is too long");
+                Array.Resize(ref result, result.Length > MaxResponsePayloadLength ? MaxResponsePayloadLength : result.Length);
+            }
+            MethodResponse methodResponse = new MethodResponse(result, (int)statusCode);
+            Logger.Information($"{logPrefix} completed with result {statusCode.ToString()}");
+            return methodResponse;
+        }
+
+        public async Task<MethodResponse> HandleSaveOpcPublishedConfigurationAsJson(MethodRequest methodRequest, object userContext)
+        {
+            const string logPrefix = "HandleGetOpcPublishedConfigurationAsJson:";
+            var statusCode = HttpStatusCode.OK;
+            SaveOpcPublishedConfigurationMethodResponseModel saveOpcPublishedConfigurationMethodResponseModel = new SaveOpcPublishedConfigurationMethodResponseModel();
+
+
+            var methodRequestData = JsonConvert.DeserializeObject<HandleSaveOpcPublishedConfigurationMethodRequestModel>(methodRequest.DataAsJson);
+            var success = await NodeConfiguration.SaveJsonAsPublisherNodeConfiguration(methodRequestData.ConfigurationJsonString);
+            NodeConfiguration = new PublisherNodeConfiguration();
+            //await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
+            if (!success)
+            {
+                Logger.Information($"{logPrefix} the configuration file is not valid.");
+                statusCode = HttpStatusCode.BadRequest;
+            }
+
+            saveOpcPublishedConfigurationMethodResponseModel.Success = success;
+            byte[] result = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(saveOpcPublishedConfigurationMethodResponseModel));
+            if (result.Length > MaxResponsePayloadLength)
+            {
+                Logger.Error($"{logPrefix} Response size is too long");
+                Array.Resize(ref result, result.Length > MaxResponsePayloadLength ? MaxResponsePayloadLength : result.Length);
+            }
+            MethodResponse methodResponse = new MethodResponse(result, (int)statusCode);
+            Logger.Information($"{logPrefix} completed with result {statusCode.ToString()}");
+            return methodResponse;
         }
 
         public static int MonitoredSettingsQueueCapacity => _settingsProcessor.MonitoredSettingsQueueCapacity;

@@ -92,6 +92,18 @@ namespace OpcPublisher
         Task<bool> ReadConfigAsync();
 
         /// <summary>
+        /// Read and parse the publisher node configuration file and return as raw json.
+        /// </summary>
+        /// <returns></returns>
+        Task<string> ReadConfigAsyncAsJson();
+
+        /// <summary>
+        /// Parse and save the publisher node configuration file.
+        /// </summary>
+        /// <returns></returns>
+        Task<bool> SaveJsonAsPublisherNodeConfiguration(string json);
+
+        /// <summary>
         /// Create the publisher data structures to manage OPC sessions, subscriptions and monitored items.
         /// </summary>
         /// <returns></returns>

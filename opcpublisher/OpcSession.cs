@@ -57,6 +57,8 @@ namespace OpcPublisher
         /// </summary>
         public static int SessionConnectWaitSec { get; set; } = 10;
 
+        public static bool SavePublishedNodes { get; set; } = false;
+
         /// <summary>
         /// The endpoint to connect to for the session.
         /// </summary>
@@ -342,7 +344,7 @@ namespace OpcPublisher
             _opcSessionSemaphore = new SemaphoreSlim(1);
             _namespaceTable = new NamespaceTable();
             _telemetryConfiguration = TelemetryConfiguration.GetEndpointTelemetryConfiguration(endpointUrl);
-            _connectAndMonitorAsync = Task.Run(ConnectAndMonitorAsync, _sessionCancelationToken);
+            _connectAndMonitorAsync = Task.Run(async () => await ConnectAndMonitorAsync(), _sessionCancelationToken);
             this.OpcAuthenticationMode= opcAuthenticationMode;
             this.EncryptedAuthCredential = encryptedAuthCredential;
         }
@@ -468,6 +470,12 @@ namespace OpcPublisher
                     await StopMonitoringItemsAsync(_sessionCancelationToken).ConfigureAwait(false);
                     _sessionCancelationToken.ThrowIfCancellationRequested();
 
+                    if (SavePublishedNodes)
+                    {
+                        await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
+                        SavePublishedNodes = false;
+                        Logger.Information("Updated publishednodes.json");
+                    }
                     await RemoveUnusedSubscriptionsAsync(_sessionCancelationToken).ConfigureAwait(false);
                     _sessionCancelationToken.ThrowIfCancellationRequested();
 
@@ -1158,6 +1166,7 @@ namespace OpcPublisher
                         try
                         {
                             Logger.Information($"Remove monitored items in subscription with id {opcSubscription.OpcUaClientSubscription.Id} on endpoint '{EndpointUrl}'");
+                            SavePublishedNodes = true;
                             opcSubscription.OpcUaClientSubscription.RemoveItems(itemsToRemove.Select(i => i.OpcUaClientMonitoredItem));
                             Logger.Information($"There are now {opcSubscription.OpcUaClientSubscription.MonitoredItemCount} monitored items in this subscription.");
                         }

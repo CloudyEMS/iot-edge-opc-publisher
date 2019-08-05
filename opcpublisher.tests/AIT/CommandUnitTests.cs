@@ -119,7 +119,7 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
             }
             finally
             {
-                NodeConfiguration.Dispose();
+                NodeConfiguration?.Dispose();
                 NodeConfiguration = null;
             }
         }

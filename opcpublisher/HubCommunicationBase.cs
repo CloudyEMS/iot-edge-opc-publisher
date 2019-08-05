@@ -2,6 +2,7 @@
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.AIT;
 using opcpublisher.AIT;
 
 namespace OpcPublisher
@@ -143,6 +144,8 @@ namespace OpcPublisher
             IotHubDirectMethods.Add("GetConfiguredEndpoints", HandleGetConfiguredEndpointsMethodAsync);
             IotHubDirectMethods.Add("GetConfiguredNodesOnEndpoint", HandleGetConfiguredNodesOnEndpointMethodAsync);
             IotHubDirectMethods.Add("GetConfiguredEventNodesOnEndpoint", HandleGetConfiguredEventsOnEndpointMethodAsync);
+            IotHubDirectMethods.Add("GetOpcPublishedConfigurationAsJson", HandleGetOpcPublishedConfigurationAsJson);
+            IotHubDirectMethods.Add("SaveOpcPublishedConfigurationAsJson", HandleSaveOpcPublishedConfigurationAsJson);
             IotHubDirectMethods.Add("GetDiagnosticInfo", HandleGetDiagnosticInfoMethodAsync);
             IotHubDirectMethods.Add("GetDiagnosticLog", HandleGetDiagnosticLogMethodAsync);
             IotHubDirectMethods.Add("GetDiagnosticStartupLog", HandleGetDiagnosticStartupLogMethodAsync);
@@ -1104,12 +1107,14 @@ namespace OpcPublisher
                 {
                     getConfiguredNodesOnEndpointMethodResponse.ContinuationToken = (ulong)nodeConfigVersion << 32 | actualNodeCount + startIndex;
                 }
+                opcNodes.ForEach(x => x.OpcPublisherPublishState = OpcPublisherPublishState.Published);
                 getConfiguredNodesOnEndpointMethodResponse.OpcNodes.AddRange(opcNodes.GetRange((int)startIndex, (int)actualNodeCount).Select(n => new OpcNodeOnEndpointModel(n.Id)
                 {
                     OpcPublishingInterval = n.OpcPublishingInterval,
                     OpcSamplingInterval = n.OpcSamplingInterval,
                     DisplayName = n.DisplayName,
-                    IotCentralItemPublishMode = n.IotCentralItemPublishMode
+                    IotCentralItemPublishMode = n.IotCentralItemPublishMode,
+                    OpcPublisherPublishState = n.OpcPublisherPublishState
                 }).ToList());
                 getConfiguredNodesOnEndpointMethodResponse.EndpointUrl = endpointUri.OriginalString;
                 resultString = JsonConvert.SerializeObject(getConfiguredNodesOnEndpointMethodResponse);

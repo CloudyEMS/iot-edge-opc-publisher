@@ -2,6 +2,7 @@
 using Opc.Ua;
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace OpcPublisher
@@ -508,6 +509,99 @@ namespace OpcPublisher
             Logger.Information($"There are {_nodePublishingConfiguration.Count.ToString(CultureInfo.InvariantCulture)} nodes to publish.");
             Logger.Information($"There are {_eventConfiguration.Count.ToString(CultureInfo.InvariantCulture)} events to publish.");
             return true;
+        }
+
+        public async Task<string> ReadConfigAsyncAsJson()
+        {
+            // get information on the nodes to publish and validate the json by deserializing it.
+            try
+            {
+                await PublisherNodeConfigurationSemaphore.WaitAsync().ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("_GW_PNFP")))
+                {
+                    Logger.Information("Publishing node configuration file path read from environment.");
+                    PublisherNodeConfigurationFilename = Environment.GetEnvironmentVariable("_GW_PNFP");
+                }
+
+                Logger.Information($"The name of the configuration file for published nodes is: {PublisherNodeConfigurationFilename}");
+
+                // if the file exists, read it, if not just continue
+                if (File.Exists(PublisherNodeConfigurationFilename))
+                {
+                    Logger.Information($"Attempting to load node configuration from: {PublisherNodeConfigurationFilename}");
+                    try
+                    {
+                        await PublisherNodeConfigurationFileSemaphore.WaitAsync().ConfigureAwait(false);
+                        var json = File.ReadAllText(PublisherNodeConfigurationFilename);
+                        _configurationFileEntries = JsonConvert.DeserializeObject<List<PublisherConfigurationFileEntryLegacyModel>>(json);
+                        return json;
+                    }
+                    finally
+                    {
+                        PublisherNodeConfigurationFileSemaphore.Release();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Fatal(e, "Loading of the node configuration file failed. Does the file exist and has correct syntax? Exiting...");
+            }
+            finally
+            {
+                PublisherNodeConfigurationSemaphore.Release();
+            }
+            return null;
+        }
+
+        public async Task<bool> SaveJsonAsPublisherNodeConfiguration(string json)
+        {
+            // get information on the nodes to publish and validate the json by deserializing it.
+            try
+            {
+                await PublisherNodeConfigurationSemaphore.WaitAsync().ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("_GW_PNFP")))
+                {
+                    Logger.Information("Publishing node configuration file path read from environment.");
+                    PublisherNodeConfigurationFilename = Environment.GetEnvironmentVariable("_GW_PNFP");
+                }
+
+                Logger.Information($"The name of the configuration file for published nodes is: {PublisherNodeConfigurationFilename}");
+
+                // if the file exists, read it, if not just continue
+                if (File.Exists(PublisherNodeConfigurationFilename))
+                {
+                    Logger.Information($"Attempting to parse node configuration from input");
+                    try
+                    {
+                        await PublisherNodeConfigurationFileSemaphore.WaitAsync().ConfigureAwait(false);
+                        //try to parse in needed datastructure
+                        _configurationFileEntries =
+                            JsonConvert.DeserializeObject<List<PublisherConfigurationFileEntryLegacyModel>>(json);
+                        Logger.Information($"JSON received is: {json}");
+                        File.WriteAllText(PublisherNodeConfigurationFilename, JsonConvert.SerializeObject(_configurationFileEntries));
+
+                        Logger.Information($"Attempting to restart session to apply new configuration.");
+                        return true;
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.Error(e.Message);
+                    }
+                    finally
+                    {
+                        PublisherNodeConfigurationFileSemaphore.Release();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Fatal(e, "Loading of the node configuration file failed. Does the file exist and has correct syntax? Exiting...");
+            }
+            finally
+            {
+                PublisherNodeConfigurationSemaphore.Release();
+            }
+            return false;
         }
 
         public virtual IOpcSession CreateOpcSession(string endpointUrl, bool useSecurity, uint sessionTimeout, OpcAuthenticationMode opcAuthenticationMode, EncryptedNetworkCredential encryptedAuthCredential)
