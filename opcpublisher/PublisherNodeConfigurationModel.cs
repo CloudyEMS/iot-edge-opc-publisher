@@ -282,6 +282,20 @@ namespace OpcPublisher
         public bool UseSecurity { get; set; }
 
         /// <summary>
+        /// Gets ot sets the authentication mode to authenticate against the OPC UA Server.
+        /// </summary>
+        [DefaultValue(OpcAuthenticationMode.Anonymous)]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore)]
+        [JsonConverter(typeof(StringEnumConverter))]
+        public OpcAuthenticationMode OpcAuthenticationMode { get; set; }
+
+        /// <summary>
+        /// Gets or sets the encrypted auth credential when OpcAuthenticationMode is set to UsernamePassword.
+        /// </summary>
+        [JsonIgnore]
+        public EncryptedNetworkCredential EncryptedAuthCredential { get; set; }
+
+        /// <summary>
         /// The event source to monitor.
         /// </summary>
         public string Id { get; set; }
@@ -309,12 +323,20 @@ namespace OpcPublisher
         /// <summary>
         /// Ctor of the object.
         /// </summary>
-        public EventConfigurationModel(string endpointUrl, bool? useSecurity, string id, string displayName,
-            List<SelectClause> selectClauses, List<WhereClauseElement> whereClause,
+        public EventConfigurationModel(
+            string endpointUrl,
+            bool? useSecurity,
+            OpcAuthenticationMode opcAuthenticationMode, 
+            EncryptedNetworkCredential encryptedAuthCredential, 
+            string id, string displayName,
+            List<SelectClause> selectClauses,
+            List<WhereClauseElement> whereClause,
             IotCentralEventPublishMode? iotCentralEventPublishMode = null)
         {
             EndpointUrl = endpointUrl;
             UseSecurity = useSecurity ?? true;
+            OpcAuthenticationMode = opcAuthenticationMode;
+            EncryptedAuthCredential = encryptedAuthCredential;
             Id = id;
             DisplayName = displayName;
             IotCentralEventPublishMode = iotCentralEventPublishMode;

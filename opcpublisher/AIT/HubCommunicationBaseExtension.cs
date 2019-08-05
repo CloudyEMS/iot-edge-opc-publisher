@@ -413,6 +413,8 @@ namespace OpcPublisher
                                 new EventConfigurationModel(
                                     endpointUri?.OriginalString,
                                     null, 
+                                    OpcAuthenticationMode.Anonymous, 
+                                    null, 
                                     n.Id, 
                                     n.DisplayName, 
                                     n.SelectClauses, 
@@ -423,6 +425,7 @@ namespace OpcPublisher
                             )
                         )
                     );
+
                 getConfiguredEventNodesOnEndpointMethodResponse.EndpointUrl = endpointUri?.OriginalString;
                 resultString = JsonConvert.SerializeObject(getConfiguredEventNodesOnEndpointMethodResponse);
                 Logger.Information($"{logPrefix} Success returning {actualNodeCount} event node(s) of {availableEventNodeCount} (start: {startIndex}) (node config version: {nodeConfigVersion:X8})!");

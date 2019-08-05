@@ -36,6 +36,9 @@
     <None Update="testdata\event\pn_plc_payload_getconfiguredevents.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="testdata\event\pn_plc_simple_eventOnly.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="testdata\event\pn_plc_simple.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

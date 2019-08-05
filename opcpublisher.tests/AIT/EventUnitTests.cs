@@ -8,6 +8,7 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
 {
     using System;
     using System.IO;
+    using System.Threading.Tasks;
     using Xunit.Abstractions;
     using static OpcPublisher.OpcApplicationConfiguration;
     using static OpcPublisher.Program;
@@ -53,7 +54,7 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "SimpleEventConfiguration")]
         [MemberData(nameof(PnPlcEventSimple))]
-        public async void CreateOpcEventPublishingData(string testFilename, int configuredSessions,
+        public async Task CreateOpcEventPublishingData(string testFilename, int configuredSessions,
             int configuredSubscriptions, int configuredMonitoredItems, int configuredMonitoredEvents)
         {
             string methodName = UnitTestHelper.GetMethodName();
@@ -88,14 +89,6 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
                 await NodeConfiguration.UpdateNodeConfigurationFileAsync().ConfigureAwait(false);
                 _configurationFileEntries = new List<PublisherConfigurationFileEntryLegacyModel>();
                 _configurationFileEntries = JsonConvert.DeserializeObject<List<PublisherConfigurationFileEntryLegacyModel>>(File.ReadAllText(PublisherNodeConfiguration.PublisherNodeConfigurationFilename));
-
-                Assert.True(_configurationFileEntries[0].OpcNodes.Count == 3);
-                Assert.True(_configurationFileEntries[0].OpcNodes[0].OpcSamplingInterval == 2000);
-                Assert.True(_configurationFileEntries[0].OpcNodes[0].OpcPublishingInterval == 5000);
-                Assert.True(_configurationFileEntries[0].OpcNodes[0].IotCentralItemPublishMode == IotCentralItemPublishMode.Default);
-                Assert.True(_configurationFileEntries[0].OpcNodes[1].IotCentralItemPublishMode == IotCentralItemPublishMode.Property);
-                Assert.True(_configurationFileEntries[0].OpcNodes[2].IotCentralItemPublishMode == IotCentralItemPublishMode.Setting);
-
 
                 Assert.True(_configurationFileEntries[0].OpcEvents.Count == 1);
                 Assert.True(_configurationFileEntries[0].OpcEvents[0].Id == "i=2253");
@@ -311,20 +304,23 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
             }
         }
 
+        /// <summary>
+        /// Filename, 
+        /// # of configured sessions,
+        /// # of configured subscriptions
+        /// # of configured monitored item
+        /// # of configured event items
+        /// </summary>
         public static IEnumerable<object[]> PnPlcEventSimple =>
             new List<object[]>
             {
-                new object[] {
-                    // published nodes configuration file
-                    new string($"pn_plc_simple.json"),
-                    // # of configured sessions
-                    1,
-                    // # of configured subscriptions
-                    2,
-                    // # of configured monitored items
-                    3,
-                    // # of configured event items
-                    1
+                new object[]
+                {
+                    "pn_plc_simple.json", 1, 2, 3, 1
+                },
+                new object[]
+                {
+                    "pn_plc_simple_eventOnly.json", 1, 1, 0, 1
                 }
             };
 

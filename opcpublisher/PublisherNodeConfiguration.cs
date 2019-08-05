@@ -354,6 +354,8 @@ namespace OpcPublisher
                 PublisherNodeConfigurationFileSemaphore = null;
                 _nodePublishingConfiguration?.Clear();
                 _nodePublishingConfiguration = null;
+                _eventConfiguration?.Clear();
+                _eventConfiguration = null;
                 lock (_singletonLock)
                 {
                     _instance = null;
@@ -474,8 +476,17 @@ namespace OpcPublisher
                                 // process event configuration
                                 foreach (var opcEvent in publisherConfigFileEntryLegacy.OpcEvents)
                                 {
-                                    _eventConfiguration.Add(new EventConfigurationModel(publisherConfigFileEntryLegacy.EndpointUrl.OriginalString, publisherConfigFileEntryLegacy.UseSecurity,
-                                        opcEvent.Id, opcEvent.DisplayName, opcEvent.SelectClauses, opcEvent.WhereClause, opcEvent.IotCentralEventPublishMode));
+                                    _eventConfiguration.Add(
+                                        new EventConfigurationModel(
+                                            publisherConfigFileEntryLegacy.EndpointUrl.OriginalString, 
+                                            publisherConfigFileEntryLegacy.UseSecurity,
+                                            publisherConfigFileEntryLegacy.OpcAuthenticationMode,
+                                            publisherConfigFileEntryLegacy.EncryptedAuthCredential,
+                                            opcEvent.Id, 
+                                            opcEvent.DisplayName,
+                                            opcEvent.SelectClauses,
+                                            opcEvent.WhereClause,
+                                            opcEvent.IotCentralEventPublishMode));
                                 }
                             }
                             else
@@ -606,7 +617,18 @@ namespace OpcPublisher
 
         public virtual IOpcSession CreateOpcSession(string endpointUrl, bool useSecurity, uint sessionTimeout, OpcAuthenticationMode opcAuthenticationMode, EncryptedNetworkCredential encryptedAuthCredential)
         {
-            return new OpcSession(endpointUrl, _nodePublishingConfiguration.Where(n => n.EndpointUrl == endpointUrl).First().UseSecurity, OpcSessionCreationTimeout, opcAuthenticationMode, encryptedAuthCredential);
+            // I don't know why this argument is overridden, but now it
+            // could be a node or event publishing configuration
+            var useSecurityOverride = 
+                _nodePublishingConfiguration.FirstOrDefault(n => n.EndpointUrl == endpointUrl)?.UseSecurity ??
+                _eventConfiguration.FirstOrDefault(n => n.EndpointUrl == endpointUrl)?.UseSecurity;
+
+            return new OpcSession(
+                endpointUrl, 
+                useSecurityOverride ?? throw new InvalidOperationException("No configuration for endpoint found"), 
+                OpcSessionCreationTimeout, 
+                opcAuthenticationMode, 
+                encryptedAuthCredential);
         }
 
         /// <summary>
@@ -693,18 +715,18 @@ namespace OpcPublisher
                 var uniqueEventsEndpointUrls = _eventConfiguration.Select(n => n.EndpointUrl).Distinct();
                 foreach (var endpointUrl in uniqueEventsEndpointUrls)
                 {
-                    var currentNodePublishingConfiguration = _nodePublishingConfiguration.Where(n => n.EndpointUrl == endpointUrl).First();
+                    var eventConfiguration = _eventConfiguration.First(n => n.EndpointUrl == endpointUrl);
 
                     EncryptedNetworkCredential encryptedAuthCredential = null;
 
-                    if (currentNodePublishingConfiguration.OpcAuthenticationMode == OpcAuthenticationMode.UsernamePassword)
+                    if (eventConfiguration.OpcAuthenticationMode == OpcAuthenticationMode.UsernamePassword)
                     {
-                        if (currentNodePublishingConfiguration.EncryptedAuthCredential == null)
+                        if (eventConfiguration.EncryptedAuthCredential == null)
                         {
                             throw new NullReferenceException($"Could not retrieve credentials to authenticate to the server. Please check if 'OpcAuthenticationUsername' and 'OpcAuthenticationPassword' are set in configuration.");
                         }
 
-                        encryptedAuthCredential = currentNodePublishingConfiguration.EncryptedAuthCredential;
+                        encryptedAuthCredential = eventConfiguration.EncryptedAuthCredential;
                     }
 
                     bool addSession = false;
@@ -713,7 +735,7 @@ namespace OpcPublisher
                     IOpcSession opcSession = OpcSessions.Find(s => s.EndpointUrl == endpointUrl);
                     if (opcSession == null)
                     {
-                        opcSession = new OpcSession(endpointUrl, _eventConfiguration.Where(n => n.EndpointUrl == endpointUrl).First().UseSecurity, OpcSessionCreationTimeout, currentNodePublishingConfiguration.OpcAuthenticationMode, encryptedAuthCredential);
+                        opcSession = new OpcSession(endpointUrl, _eventConfiguration.Where(n => n.EndpointUrl == endpointUrl).First().UseSecurity, OpcSessionCreationTimeout, eventConfiguration.OpcAuthenticationMode, encryptedAuthCredential);
                         addSession = true;
                     }
 
