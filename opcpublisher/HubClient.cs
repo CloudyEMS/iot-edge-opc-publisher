@@ -67,6 +67,7 @@ namespace OpcPublisher
             _iotHubClient = iotHubClient;
             MonitoredSettingsCollection = new Dictionary<string, string>();
             _iotHubClient.SetDesiredPropertyUpdateCallbackAsync(HandleSettingChanged, null);
+            _iotHubClient.SetMethodHandlerAsync("DesiredPropertiesUpdated", DesiredPropertiesUpdated, null);
             _logger = logger;
         }
 
@@ -78,6 +79,7 @@ namespace OpcPublisher
             _edgeHubClient = edgeHubClient;
             MonitoredSettingsCollection = new Dictionary<string, string>();
             _edgeHubClient.SetDesiredPropertyUpdateCallbackAsync(HandleSettingChanged, null);
+            _edgeHubClient.SetMethodHandlerAsync("DesiredPropertiesUpdated", DesiredPropertiesUpdated, null);
             _logger = logger;
         }
 
@@ -237,13 +239,18 @@ namespace OpcPublisher
                 reportedPropertiesEdge[message.DataChangeMessageData.DisplayName] = message.DataChangeMessageData.Value;
             }
             
+            var eventMessage = new Message(Encoding.UTF8.GetBytes(reportedPropertiesEdge.ToJson()));
+            eventMessage.Properties["x-reported-properties"] = "true";
+            
             if (_iotHubClient == null)
             {   
                 await _edgeHubClient.UpdateReportedPropertiesAsync(reportedPropertiesEdge, ct).ConfigureAwait(false);
+                await _edgeHubClient.SendEventAsync(eventMessage).ConfigureAwait(false);
             }
             else
             {
                 await _iotHubClient.UpdateReportedPropertiesAsync(reportedPropertiesEdge, ct).ConfigureAwait(false);
+                await _iotHubClient.SendEventAsync(eventMessage).ConfigureAwait(false);
             }
         }
 
@@ -271,13 +278,18 @@ namespace OpcPublisher
                 reportedPropertiesEdge[message.DataChangeMessageData.DisplayName]["message"] = "Processed";
             }
             
+            var eventMessage = new Message(Encoding.UTF8.GetBytes(reportedPropertiesEdge.ToJson()));
+            eventMessage.Properties["x-reported-properties"] = "true";
+            
             if (_iotHubClient == null)
-            {   
+            {
                 await _edgeHubClient.UpdateReportedPropertiesAsync(reportedPropertiesEdge, ct).ConfigureAwait(false);
+                await _edgeHubClient.SendEventAsync(eventMessage).ConfigureAwait(false);
             }
             else
             {
                 await _iotHubClient.UpdateReportedPropertiesAsync(reportedPropertiesEdge, ct).ConfigureAwait(false);
+                await _iotHubClient.SendEventAsync(eventMessage).ConfigureAwait(false);
             }
         }
 
@@ -358,8 +370,7 @@ namespace OpcPublisher
                             ClientBase.ValidateResponse(results, valuesToWrite);
                             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, valuesToWrite);
 
-                            string status,
-                                message;
+                            string status, message;
                             if (StatusCode.IsBad(results[0]))
                             {
                                 _logger.Error($"[{results[0].ToString()}]: Cannot write Setting value of Monitored Item with NodeId {opcMonitoredItem.Id} and DisplayName {opcMonitoredItem.DisplayName}");
@@ -372,13 +383,17 @@ namespace OpcPublisher
                                 message = "Processed";
                             }
 
-                            reportedProperties[key] = new {
-                                value = desiredProperties[key]["value"],
-                                status,
-                                desiredVersion = desiredProperties["$version"],
-                                message
-                            };
-                            await UpdateReportedPropertiesAsync(reportedProperties);
+                            if (desiredProperties.Contains("$version"))
+                            {
+                                reportedProperties[key] = new {
+                                    value = desiredProperties[key]["value"],
+                                    status,
+                                    desiredVersion = desiredProperties["$version"],
+                                    message
+                                };
+                             
+                                await UpdateReportedPropertiesAsync(reportedProperties);
+                            }
                         }
                     }
                 }
@@ -546,14 +561,25 @@ namespace OpcPublisher
 
         private async Task UpdateReportedPropertiesAsync(TwinCollection reportedProperties)
         {
+            var eventMessage = new Message(Encoding.UTF8.GetBytes(reportedProperties.ToJson()));
+            eventMessage.Properties["x-reported-properties"] = "true";
+
             if (_iotHubClient == null)
             {
-                await _edgeHubClient.UpdateReportedPropertiesAsync(reportedProperties);
+                await _edgeHubClient.UpdateReportedPropertiesAsync(reportedProperties).ConfigureAwait(false);
+                await _edgeHubClient.SendEventAsync(eventMessage).ConfigureAwait(false);
             }
             else
             {
-                await _iotHubClient.UpdateReportedPropertiesAsync(reportedProperties);
+                await _iotHubClient.UpdateReportedPropertiesAsync(reportedProperties).ConfigureAwait(false);
+                await _iotHubClient.SendEventAsync(eventMessage).ConfigureAwait(false);
             }
+        }
+
+        private async Task<MethodResponse> DesiredPropertiesUpdated(MethodRequest methodRequest, object userContext)
+        {
+            await HandleSettingChanged(new TwinCollection(methodRequest.DataAsJson), null);
+            return new MethodResponse((int) HttpStatusCode.OK);
         }
 
         private readonly Logger _logger;
