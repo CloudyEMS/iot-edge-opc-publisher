@@ -141,6 +141,8 @@ namespace OpcPublisher
 
 #if !DEBUG
                     CryptoProvider = new IotEdgeCryptoProvider();
+#else
+                    CryptoProvider = new StandaloneCryptoProvider();
 #endif
 
                     // set IoT Edge specific defaults

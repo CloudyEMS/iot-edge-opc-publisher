@@ -507,7 +507,8 @@ namespace OpcPublisher
                 if (opcSession == null)
                 {
                     // create new session info.
-                    opcSession = new OpcSession(endpointUri.OriginalString, true, OpcSessionCreationTimeout, OpcAuthenticationMode.Anonymous, null);
+                    // endpointName is null here. Since we currently do not have to support configuration of OPC Publisher by OPC server this is ok for now.
+                    opcSession = new OpcSession(Guid.NewGuid(), null, endpointUri.OriginalString, true, OpcSessionCreationTimeout, OpcAuthenticationMode.Anonymous, null);
                     NodeConfiguration.OpcSessions.Add(opcSession);
                     Logger.Information($"OnPublishNodeCall: No matching session found for endpoint '{endpointUri.OriginalString}'. Requested to create a new one.");
                 }

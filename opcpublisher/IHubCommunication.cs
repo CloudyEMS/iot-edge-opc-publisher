@@ -52,6 +52,11 @@ namespace OpcPublisher
         Task<MethodResponse> HandleGetConfiguredEndpointsMethodAsync(MethodRequest methodRequest, object userContext);
 
         /// <summary>
+        /// Handle method call to delete an endpoint.
+        /// </summary>
+        Task<MethodResponse> HandleDeleteConfiguredEndpointMethodAsync(MethodRequest methodRequest, object userContext); 
+
+        /// <summary>
         /// Handle method call to get list of configured nodes on a specific endpoint.
         /// </summary>
         Task<MethodResponse> HandleGetConfiguredNodesOnEndpointMethodAsync(MethodRequest methodRequest, object userContext);

@@ -234,6 +234,7 @@ namespace OpcPublisher
                             _nextSendTime += TimeSpan.FromSeconds(DefaultSendIoTcIntervalSeconds);
                             try
                             {
+                                encodedhubMessage.Properties["endpointId"] = eventMessageData.EndpointId;
                                 SentIoTcBytes += encodedhubMessage.GetBytes().Length;
                                 await _hubClient.SendEventAsync(encodedhubMessage).ConfigureAwait(false);
                                 SentIoTcEvents++;

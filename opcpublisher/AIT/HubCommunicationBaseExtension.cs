@@ -37,12 +37,15 @@ namespace OpcPublisher
         {
             var logPrefix = "HandlePublishEventsMethodAsync:";
             var useSecurity = true;
+            Guid endpointId = Guid.Empty;
+            string endpointName = null;
             Uri endpointUri = null;
 
             OpcAuthenticationMode? desiredAuthenticationMode = null;
             EncryptedNetworkCredential desiredEncryptedCredential = null;
 
             PublishNodesMethodRequestModel publishEventsMethodData = null;
+            PublishNodesMethodResponseModel publishedEventMethodResponse = null;
             var statusCode = HttpStatusCode.OK;
             var statusResponse = new List<string>();
             string statusMessage;
@@ -50,6 +53,8 @@ namespace OpcPublisher
             {
                 _logger.Debug($"{logPrefix} called");
                 publishEventsMethodData = JsonConvert.DeserializeObject<PublishNodesMethodRequestModel>(methodRequest.DataAsJson);
+                endpointId = publishEventsMethodData.EndpointId == null ? Guid.Empty : new Guid(publishEventsMethodData.EndpointId);
+                endpointName = publishEventsMethodData.EndpointName;
                 endpointUri = new Uri(publishEventsMethodData.EndpointUrl);
                 useSecurity = publishEventsMethodData.UseSecurity;
 
@@ -79,6 +84,13 @@ namespace OpcPublisher
                 statusResponse.Add(statusMessage);
                 statusCode = HttpStatusCode.NotAcceptable;
             }
+            catch (FormatException e)
+            {
+                statusMessage = $"Exception ({e.Message}) while parsing EndpointId '{publishEventsMethodData?.EndpointId}'";
+                _logger.Error(e, $"{logPrefix} {statusMessage}");
+                statusResponse.Add(statusMessage);
+                statusCode = HttpStatusCode.NotAcceptable;
+            }
             catch (Exception e)
             {
                 statusMessage = $"Exception ({e.Message}) while deserializing message payload";
@@ -104,12 +116,15 @@ namespace OpcPublisher
                     }
                     else
                     {
-                        // find the session we need to monitor the node
                         IOpcSession opcSession = null;
-                        opcSession = NodeConfiguration.OpcSessions.FirstOrDefault(s => s.EndpointUrl.Equals(endpointUri?.OriginalString, StringComparison.OrdinalIgnoreCase));
-
-                        // add a new session.
-                        if (opcSession == null)
+                         /* we create new sessions in two cases
+                            1. For new endpoints
+                            2. For existing endpoints which do not have a OpcSession configured: 
+                               this happens if for an existing endpoint all monitored items, commands and events are removed (unused sessions are removed). 
+                        */
+                        var isNewEndpoint = endpointId == Guid.Empty;
+                        var isExistingEndpointWithoutSession = !isNewEndpoint && NodeConfiguration.OpcSessions.FirstOrDefault(s => s.EndpointId.Equals(endpointId)) == null;
+                        if (isNewEndpoint || isExistingEndpointWithoutSession)
                         {
                             // if the no OpcAuthenticationMode is specified, we create the new session with "Anonymous" auth
                             if (!desiredAuthenticationMode.HasValue)
@@ -117,13 +132,20 @@ namespace OpcPublisher
                                 desiredAuthenticationMode = OpcAuthenticationMode.Anonymous;
                             }
                             
+                            if(isNewEndpoint)
+                            {
+                                endpointId = Guid.NewGuid();
+                            }
                             // create new session info.
-                            opcSession = new OpcSession(endpointUri.OriginalString, useSecurity, OpcSessionCreationTimeout, desiredAuthenticationMode.Value, desiredEncryptedCredential);
+                            opcSession = new OpcSession(endpointId, endpointName, endpointUri.OriginalString, useSecurity, OpcSessionCreationTimeout, desiredAuthenticationMode.Value, desiredEncryptedCredential);
                             NodeConfiguration.OpcSessions.Add(opcSession);
                             Logger.Information($"{logPrefix} No matching session found for endpoint '{endpointUri.OriginalString}'. Requested to create a new one.");
                         }
                         else 
                         {
+                            // find the session we need to monitor the node
+                            opcSession = NodeConfiguration.OpcSessions.FirstOrDefault(s => s.EndpointUrl.Equals(endpointUri?.OriginalString, StringComparison.OrdinalIgnoreCase));
+
                             // a session already exists, so we check, if we need to change authentication settings. This is only true, if the payload contains an OpcAuthenticationMode-Property
                             if (desiredAuthenticationMode.HasValue)
                             {
@@ -145,6 +167,7 @@ namespace OpcPublisher
                                 {
                                     await opcSession.Reconnect();
                                 }
+
                             }
                         }
 
@@ -197,8 +220,8 @@ namespace OpcPublisher
                                         Logger.Debug(
                                             $"{logPrefix} Request to monitor eventNode with ExpandedNodeId '{eventNode.Id}'");
                                         nodeStatusCode = await opcSession.AddEventNodeForMonitoringAsync(null,
-                                                expandedNodeId, 5000, 2000, eventNode.DisplayName, 
-                                                null, null, ShutdownTokenSource.Token, null, 
+                                                expandedNodeId, 5000, 2000, eventNode.DisplayName,
+                                                null, null, ShutdownTokenSource.Token, null,
                                                 publishEventsMethodData)
                                             .ConfigureAwait(false);
                                     }
@@ -278,12 +301,13 @@ namespace OpcPublisher
                 }
             }
 
-            // adjust response size
-            AdjustResponse(ref statusResponse);
-
             // build response
-            var resultString = JsonConvert.SerializeObject(statusResponse);
-            var result = Encoding.UTF8.GetBytes(resultString);
+            publishedEventMethodResponse = new PublishNodesMethodResponseModel(endpointId.ToString());
+            string resultString = statusCode == HttpStatusCode.OK || statusCode == HttpStatusCode.Accepted ?
+                JsonConvert.SerializeObject(publishedEventMethodResponse): 
+                JsonConvert.SerializeObject(statusResponse);
+            byte[] result = Encoding.UTF8.GetBytes(resultString);
+
             if (result.Length > MaxResponsePayloadLength)
             {
                 Logger.Error($"{logPrefix} Response size is too long");
@@ -299,8 +323,10 @@ namespace OpcPublisher
         /// </summary>
         public virtual Task<MethodResponse> HandleGetConfiguredEventsOnEndpointMethodAsync(MethodRequest methodRequest, object userContext)
         {
-            const string logPrefix = "HandleGetConfiguredNodesOnEndpointMethodAsync:";
-            Uri endpointUri = null;
+            const string logPrefix = "HandleGetConfiguredEventsOnEndpointMethodAsync:";
+            Guid endpointId = Guid.Empty;
+            string endpointName = null;
+            string endpointUrl = null;
             GetConfiguredNodesOnEndpointMethodRequestModel getConfiguredEventNodesOnEndpointMethodRequest = null;
             uint nodeConfigVersion = 0;
             GetConfiguredEventNodesOnEndpointMethodResponseModel getConfiguredEventNodesOnEndpointMethodResponse = new GetConfiguredEventNodesOnEndpointMethodResponseModel();
@@ -316,11 +342,20 @@ namespace OpcPublisher
             {
                 Logger.Debug($"{logPrefix} called");
                 getConfiguredEventNodesOnEndpointMethodRequest = JsonConvert.DeserializeObject<GetConfiguredNodesOnEndpointMethodRequestModel>(methodRequest.DataAsJson);
-                endpointUri = new Uri(getConfiguredEventNodesOnEndpointMethodRequest.EndpointUrl);
+                if(getConfiguredEventNodesOnEndpointMethodRequest.EndpointId == null) 
+                {
+                    statusMessage = $"New endpoint: there are no event nodes configured";
+                    Logger.Information($"{logPrefix} {statusMessage}");
+                    statusResponse.Add(statusMessage);
+                    statusCode = HttpStatusCode.NoContent;
+                }
+                else{
+                    endpointId =new Guid(getConfiguredEventNodesOnEndpointMethodRequest.EndpointId);
+                }
             }
-            catch (UriFormatException e)
+            catch (FormatException e)
             {
-                statusMessage = $"Exception ({e.Message}) while parsing EndpointUrl '{getConfiguredEventNodesOnEndpointMethodRequest?.EndpointUrl}'";
+                statusMessage = $"Exception ({e.Message}) while parsing EndpointId '{getConfiguredEventNodesOnEndpointMethodRequest?.EndpointId}'";
                 Logger.Error(e, $"{logPrefix} {statusMessage}");
                 statusResponse.Add(statusMessage);
                 statusCode = HttpStatusCode.InternalServerError;
@@ -336,22 +371,26 @@ namespace OpcPublisher
             if (statusCode == HttpStatusCode.OK)
             {
                 // get the list of published nodes for the endpoint
-                List<PublisherConfigurationFileEntryModel> configFileEntries = NodeConfiguration.GetPublisherConfigurationFileEntries(endpointUri?.OriginalString, false, out nodeConfigVersion);
+                List<PublisherConfigurationFileEntryModel> configFileEntries = NodeConfiguration.GetPublisherConfigurationFileEntries(endpointId, false, out nodeConfigVersion);
 
                 // return if there are no nodes configured for this endpoint
                 if (configFileEntries.Count == 0)
                 {
-                    statusMessage = $"There are no event nodes configured for endpoint '{endpointUri?.OriginalString}'";
+                    statusMessage = $"There are no event nodes configured for endpoint '{endpointId.ToString()}'";
                     Logger.Information($"{logPrefix} {statusMessage}");
                     statusResponse.Add(statusMessage);
-                    statusCode = HttpStatusCode.OK;
+                    statusCode = HttpStatusCode.NoContent;
                 }
                 else
                 {
+                    endpointName = configFileEntries.First().EndpointName;
+                    endpointUrl = configFileEntries.First().EndpointUrl.ToString();
                     foreach (var configFileEntry in configFileEntries)
                     {
                         if(configFileEntry?.OpcEvents != null)
-                            opcEvents.AddRange(configFileEntry?.OpcEvents);
+                        {
+                            opcEvents.AddRange(configFileEntry.OpcEvents);
+                        }
                     }
                     uint configuredEventNodesOnEndpointCount = (uint)opcEvents.Count();
 
@@ -405,30 +444,37 @@ namespace OpcPublisher
                     getConfiguredEventNodesOnEndpointMethodResponse.ContinuationToken = (ulong)nodeConfigVersion << 32 | actualNodeCount + startIndex;
                 }
 
+                // Todo: check if EventConfigurationModel mit endpointName = endpointUrl = null ok?
                 getConfiguredEventNodesOnEndpointMethodResponse.EventNodes
                     .AddRange(opcEvents
                         .GetRange((int)startIndex, (int)actualNodeCount)
                         .Select(n =>
                             new OpcEventOnEndpointModel(
                                 new EventConfigurationModel(
-                                    endpointUri?.OriginalString,
-                                    null, 
-                                    OpcAuthenticationMode.Anonymous, 
-                                    null, 
+                                    endpointId.ToString(), 
+                                    endpointName, 
+                                    endpointUrl, 
+                                    null,
+                                    OpcAuthenticationMode.Anonymous,
+                                    null,
                                     n.Id, 
                                     n.DisplayName, 
                                     n.SelectClauses, 
                                     n.WhereClause, 
                                     n.IotCentralEventPublishMode
-                                ),
-                                OpcPublisherPublishState.Published
-                            )
+                               ),
+                               OpcPublisherPublishState.Published
+                           )
                         )
                     );
-
-                getConfiguredEventNodesOnEndpointMethodResponse.EndpointUrl = endpointUri?.OriginalString;
+                getConfiguredEventNodesOnEndpointMethodResponse.EndpointId = endpointId.ToString();
                 resultString = JsonConvert.SerializeObject(getConfiguredEventNodesOnEndpointMethodResponse);
                 Logger.Information($"{logPrefix} Success returning {actualNodeCount} event node(s) of {availableEventNodeCount} (start: {startIndex}) (node config version: {nodeConfigVersion:X8})!");
+            }
+            else if (statusCode == HttpStatusCode.NoContent)
+            {
+                 resultString = JsonConvert.SerializeObject(getConfiguredEventNodesOnEndpointMethodResponse);
+                 Logger.Information($"{logPrefix} Success returning 0 event nodes.");
             }
             else
             {
@@ -443,6 +489,123 @@ namespace OpcPublisher
             MethodResponse methodResponse = new MethodResponse(result, (int)statusCode);
             Logger.Information($"{logPrefix} completed with result {statusCode.ToString()}");
             return Task.FromResult(methodResponse);
+        }
+
+        public virtual async Task<MethodResponse> HandleDeleteConfiguredEndpointMethodAsync(MethodRequest methodRequest, object userContext) 
+        {
+            const string logPrefix = "HandleDeleteConfiguredEndpointMethodAsync:";
+            Guid endpointId = Guid.Empty;
+            DeleteConfiguredEndpointMethodRequestModel deleteConfiguredEndpointMethodRequest = null;
+
+            HttpStatusCode statusCode = HttpStatusCode.OK;
+            List<string> statusResponse = new List<string>();
+            string statusMessage = string.Empty;
+
+            try
+            {
+                Logger.Debug($"{logPrefix} called");
+                deleteConfiguredEndpointMethodRequest = JsonConvert.DeserializeObject<DeleteConfiguredEndpointMethodRequestModel>(methodRequest.DataAsJson);
+
+                if(deleteConfiguredEndpointMethodRequest.EndpointId == null) 
+                {
+                    statusMessage = $"EndpointId can not be null.";
+                    Logger.Error($"{logPrefix} {statusMessage}");
+                    statusResponse.Add(statusMessage);
+                    statusCode = HttpStatusCode.InternalServerError;
+                }
+                endpointId = new Guid(deleteConfiguredEndpointMethodRequest.EndpointId);
+            }
+            catch (FormatException e)
+            {
+                statusMessage = $"Exception ({e.Message}) while parsing EndpointId '{deleteConfiguredEndpointMethodRequest?.EndpointId}'";
+                Logger.Error(e, $"{logPrefix} {statusMessage}");
+                statusResponse.Add(statusMessage);
+                statusCode = HttpStatusCode.InternalServerError;
+            }
+            catch (Exception e)
+            {
+                statusMessage = $"Exception ({e.Message}) while deserializing message payload";
+                Logger.Error(e, $"{logPrefix} Exception");
+                statusResponse.Add(statusMessage);
+                statusCode = HttpStatusCode.InternalServerError;
+            }
+
+            if (statusCode == HttpStatusCode.OK)
+            {
+                // Unpublish all nodes from endpoint
+                var unpublishNodesRequestModel = new UnpublishAllNodesMethodRequestModel(endpointId.ToString());
+                var json = JsonConvert.SerializeObject(unpublishNodesRequestModel);
+                var jsonBytes = Encoding.UTF8.GetBytes(json);
+
+                var unpublishNodesRequest = new MethodRequest("UnpublishNodes", jsonBytes, TimeSpan.FromSeconds(150), TimeSpan.FromSeconds(60));
+                var unpublishNodesResponse = await HandleUnpublishAllNodesMethodAsync(unpublishNodesRequest, userContext);
+
+                if (unpublishNodesResponse.Status != (int)HttpStatusCode.OK)
+                {
+                    statusMessage = $"Error unpublishing nodes from endpoint {endpointId.ToString()}.";
+                    Logger.Error($"{logPrefix} {statusMessage}");
+                    statusResponse.Add(statusMessage);
+                    statusCode = HttpStatusCode.InternalServerError;
+                }
+                else
+                {
+                    try
+                    {
+                        await NodeConfiguration.OpcSessionsListSemaphore.WaitAsync().ConfigureAwait(false);
+                        if (ShutdownTokenSource.IsCancellationRequested)
+                        {
+                            statusMessage = $"Publisher is in shutdown";
+                            Logger.Error($"{logPrefix} {statusMessage}");
+                            statusResponse.Add(statusMessage);
+                            statusCode = HttpStatusCode.Gone;
+                        }
+                        else
+                        {
+                            var session = NodeConfiguration.OpcSessions.SingleOrDefault(s => s.EndpointId == endpointId);
+                            if(session == null){
+                                statusMessage = $"No matching session for endpoint {endpointId.ToString()}.";
+                                Logger.Warning($"{logPrefix} {statusMessage}");
+                                statusResponse.Add(statusMessage);
+                                statusCode = HttpStatusCode.NotFound;
+                            }
+                            else
+                            {
+                                NodeConfiguration.OpcSessions.Remove(session);
+
+                                statusMessage = $"Endpoint {endpointId.ToString()} has been removed..";
+                                Logger.Warning($"{logPrefix} {statusMessage}");
+                                statusResponse.Add(statusMessage);
+                            }
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        statusMessage = $"EndpointId: '{endpointId.ToString()}': exception ({e.Message}) while trying to delete";
+                        Logger.Error(e, $"{logPrefix} {statusMessage}");
+                        statusResponse.Add(statusMessage);
+                        statusCode = HttpStatusCode.InternalServerError;
+                    }
+                    finally
+                    {
+                        NodeConfiguration.OpcSessionsListSemaphore.Release();
+                    }
+                }
+            }
+
+            // adjust response size
+            AdjustResponse(ref statusResponse);
+
+            // build response
+            string resultString = JsonConvert.SerializeObject(statusResponse);
+            byte[] result = Encoding.UTF8.GetBytes(resultString);
+            if (result.Length > MaxResponsePayloadLength)
+            {
+                Logger.Error($"{logPrefix} Response size is too long");
+                Array.Resize(ref result, result.Length > MaxResponsePayloadLength ? MaxResponsePayloadLength : result.Length);
+            }
+            MethodResponse methodResponse = new MethodResponse(result, (int)statusCode);
+            Logger.Information($"{logPrefix} completed with result {statusCode.ToString()}");
+            return methodResponse;
         }
 
         public virtual async Task<MethodResponse> HandleGetOpcPublishedConfigurationAsJson(MethodRequest methodRequest, object userContext)

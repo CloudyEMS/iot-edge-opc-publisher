@@ -24,6 +24,9 @@
     <None Update="testdata\ait\pn_plc_command_simple.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="testdata\ait\pn_plc_multipleEndpoints.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="testdata\ait\pn_plc_simple.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -31,6 +34,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="testdata\event\pn_plc_payload.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="testdata\ait\pn_plc_payload_deleteConfiguredEndpoint.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="testdata\event\pn_plc_payload_getconfiguredevents.json">

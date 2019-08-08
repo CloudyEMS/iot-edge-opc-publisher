@@ -82,15 +82,15 @@ namespace OpcPublisher
                     // add a new item to monitor
                     if (expandedNodeId == null)
                     {
-                        opcMonitoredItem = new OpcMonitoredItem(new EventConfigurationModel(publishEventsMethodData.EndpointUrl, publishEventsMethodData.UseSecurity, publishEventsMethodData.OpcAuthenticationMode ?? OpcAuthenticationMode.Anonymous, encryptedCredentials,
+                        opcMonitoredItem = new OpcMonitoredItem(new EventConfigurationModel(publishEventsMethodData.EndpointId, publishEventsMethodData.EndpointName, publishEventsMethodData.EndpointUrl, publishEventsMethodData.UseSecurity, publishEventsMethodData.OpcAuthenticationMode ?? OpcAuthenticationMode.Anonymous, encryptedCredentials,
                             publishEventsMethodData.OpcEvents[0].Id, publishEventsMethodData.OpcEvents[0].DisplayName, publishEventsMethodData.OpcEvents[0].SelectClauses,
-                            publishEventsMethodData.OpcEvents[0].WhereClause, publishEventsMethodData.OpcEvents[0].IotCentralEventPublishMode), EndpointUrl);
+                            publishEventsMethodData.OpcEvents[0].WhereClause, publishEventsMethodData.OpcEvents[0].IotCentralEventPublishMode), EndpointId, EndpointUrl); ;
                     }
                     else
                     {
-                        opcMonitoredItem = new OpcMonitoredItem(new EventConfigurationModel(publishEventsMethodData.EndpointUrl, publishEventsMethodData.UseSecurity, publishEventsMethodData.OpcAuthenticationMode ?? OpcAuthenticationMode.Anonymous, encryptedCredentials,
+                        opcMonitoredItem = new OpcMonitoredItem(new EventConfigurationModel(publishEventsMethodData.EndpointId, publishEventsMethodData.EndpointName, publishEventsMethodData.EndpointUrl, publishEventsMethodData.UseSecurity, publishEventsMethodData.OpcAuthenticationMode ?? OpcAuthenticationMode.Anonymous, encryptedCredentials,
                             expandedNodeId.ToString(), publishEventsMethodData.OpcEvents[0].DisplayName, publishEventsMethodData.OpcEvents[0].SelectClauses,
-                            publishEventsMethodData.OpcEvents[0].WhereClause, publishEventsMethodData.OpcEvents[0].IotCentralEventPublishMode), EndpointUrl);
+                            publishEventsMethodData.OpcEvents[0].WhereClause, publishEventsMethodData.OpcEvents[0].IotCentralEventPublishMode), EndpointId, EndpointUrl);
                     }
                     opcEventSubscription.OpcMonitoredItems.Add(opcMonitoredItem);
                     Interlocked.Increment(ref NodeConfigVersion);

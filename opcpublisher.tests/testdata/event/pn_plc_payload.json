@@ -1,10 +1,15 @@
 {
+  "EndpointId": "eeea7191-bb7c-49e8-8362-29236a4f8468",
+  "EndpointName": "Simple Server 1",
   "EndpointUrl": "opc.tcp://127.0.0.1:62563/Quickstarts/SimpleEventsServer",
   "OpcNodes": [
 
   ],
   "OpcEvents": [
     {
+      "EndpointId": "eeea7191-bb7c-49e8-8362-29236a4f8468",
+      "EndpointName": "Simple Server 1",
+      "EndpointUrl": "opc.tcp://127.0.0.1:62563/Quickstarts/SimpleEventsServer",
       "Id": "i=2253",
       "DisplayName": "Server",
       "SelectClauses": [

@@ -442,7 +442,8 @@ namespace OpcPublisher
                                     {
                                         ExpandedNodeId expandedNodeId = ExpandedNodeId.Parse(opcNode.ExpandedNodeId);
                                         _nodePublishingConfiguration.Add(new NodePublishingConfigurationModel(expandedNodeId, opcNode.ExpandedNodeId,
-                                            publisherConfigFileEntryLegacy.EndpointUrl.OriginalString, publisherConfigFileEntryLegacy.UseSecurity,
+                                            publisherConfigFileEntryLegacy.EndpointId, publisherConfigFileEntryLegacy.EndpointName, publisherConfigFileEntryLegacy.EndpointUrl.OriginalString, 
+                                            publisherConfigFileEntryLegacy.UseSecurity,
                                             opcNode.OpcPublishingInterval, opcNode.OpcSamplingInterval, opcNode.DisplayName,
                                             opcNode.HeartbeatInterval, opcNode.SkipFirst, publisherConfigFileEntryLegacy.OpcAuthenticationMode,
                                             publisherConfigFileEntryLegacy.EncryptedAuthCredential, opcNode.IotCentralItemPublishMode));
@@ -455,7 +456,8 @@ namespace OpcPublisher
                                             // ExpandedNodeId format
                                             ExpandedNodeId expandedNodeId = ExpandedNodeId.Parse(opcNode.Id);
                                             _nodePublishingConfiguration.Add(new NodePublishingConfigurationModel(expandedNodeId, opcNode.Id,
-                                                publisherConfigFileEntryLegacy.EndpointUrl.OriginalString, publisherConfigFileEntryLegacy.UseSecurity,
+                                                publisherConfigFileEntryLegacy.EndpointId, publisherConfigFileEntryLegacy.EndpointName, publisherConfigFileEntryLegacy.EndpointUrl.OriginalString, 
+                                                publisherConfigFileEntryLegacy.UseSecurity,
                                                 opcNode.OpcPublishingInterval, opcNode.OpcSamplingInterval, opcNode.DisplayName,
                                                 opcNode.HeartbeatInterval, opcNode.SkipFirst, publisherConfigFileEntryLegacy.OpcAuthenticationMode,
                                                 publisherConfigFileEntryLegacy.EncryptedAuthCredential, opcNode.IotCentralItemPublishMode));
@@ -465,7 +467,8 @@ namespace OpcPublisher
                                             // NodeId format
                                             NodeId nodeId = NodeId.Parse(opcNode.Id);
                                             _nodePublishingConfiguration.Add(new NodePublishingConfigurationModel(nodeId, opcNode.Id,
-                                                publisherConfigFileEntryLegacy.EndpointUrl.OriginalString, publisherConfigFileEntryLegacy.UseSecurity,
+                                                publisherConfigFileEntryLegacy.EndpointId, publisherConfigFileEntryLegacy.EndpointName, publisherConfigFileEntryLegacy.EndpointUrl.OriginalString,
+                                                publisherConfigFileEntryLegacy.UseSecurity,
                                                 opcNode.OpcPublishingInterval, opcNode.OpcSamplingInterval, opcNode.DisplayName,
                                                 opcNode.HeartbeatInterval, opcNode.SkipFirst, publisherConfigFileEntryLegacy.OpcAuthenticationMode,
                                                 publisherConfigFileEntryLegacy.EncryptedAuthCredential, opcNode.IotCentralItemPublishMode));
@@ -478,6 +481,8 @@ namespace OpcPublisher
                                 {
                                     _eventConfiguration.Add(
                                         new EventConfigurationModel(
+                                            publisherConfigFileEntryLegacy.EndpointId.ToString(), 
+                                            publisherConfigFileEntryLegacy.EndpointName,
                                             publisherConfigFileEntryLegacy.EndpointUrl.OriginalString, 
                                             publisherConfigFileEntryLegacy.UseSecurity,
                                             publisherConfigFileEntryLegacy.OpcAuthenticationMode,
@@ -495,6 +500,8 @@ namespace OpcPublisher
                                 _nodePublishingConfiguration.Add(new NodePublishingConfigurationModel(
                                     publisherConfigFileEntryLegacy.NodeId,
                                     publisherConfigFileEntryLegacy.NodeId.ToString(),
+                                    publisherConfigFileEntryLegacy.EndpointId,
+                                    publisherConfigFileEntryLegacy.EndpointName,
                                     publisherConfigFileEntryLegacy.EndpointUrl.OriginalString,
                                     publisherConfigFileEntryLegacy.UseSecurity,
                                     null, null, null,
@@ -615,15 +622,17 @@ namespace OpcPublisher
             return false;
         }
 
-        public virtual IOpcSession CreateOpcSession(string endpointUrl, bool useSecurity, uint sessionTimeout, OpcAuthenticationMode opcAuthenticationMode, EncryptedNetworkCredential encryptedAuthCredential)
+        public virtual IOpcSession CreateOpcSession(Guid endpointId, string endpointName, string endpointUrl, bool useSecurity, uint sessionTimeout, OpcAuthenticationMode opcAuthenticationMode, EncryptedNetworkCredential encryptedAuthCredential)
         {
             // I don't know why this argument is overridden, but now it
             // could be a node or event publishing configuration
             var useSecurityOverride = 
-                _nodePublishingConfiguration.FirstOrDefault(n => n.EndpointUrl == endpointUrl)?.UseSecurity ??
-                _eventConfiguration.FirstOrDefault(n => n.EndpointUrl == endpointUrl)?.UseSecurity;
+                _nodePublishingConfiguration.FirstOrDefault(n => n.EndpointId == endpointId)?.UseSecurity ??
+                _eventConfiguration.FirstOrDefault(n => n.EndpointId == endpointId.ToString())?.UseSecurity;
 
             return new OpcSession(
+                endpointId, 
+                endpointName,
                 endpointUrl, 
                 useSecurityOverride ?? throw new InvalidOperationException("No configuration for endpoint found"), 
                 OpcSessionCreationTimeout, 
@@ -644,10 +653,10 @@ namespace OpcPublisher
                 await OpcSessionsListSemaphore.WaitAsync().ConfigureAwait(false);
 
                 // create data for data change configuration
-                var uniqueNodesEndpointUrls = _nodePublishingConfiguration.Select(n => n.EndpointUrl).Distinct();
-                foreach (var endpointUrl in uniqueNodesEndpointUrls)
+                var uniqueNodesEndpointIds = _nodePublishingConfiguration.Select(n => n.EndpointId).Distinct();
+                foreach (var endpointId in uniqueNodesEndpointIds)
                 {
-                    var currentNodePublishingConfiguration = _nodePublishingConfiguration.Where(n => n.EndpointUrl == endpointUrl).First();
+                    var currentNodePublishingConfiguration = _nodePublishingConfiguration.Where(n => n.EndpointId == endpointId).First();
 
                     EncryptedNetworkCredential encryptedAuthCredential = null;
 
@@ -662,17 +671,17 @@ namespace OpcPublisher
                     }
 
                     // create new session info.
-                    IOpcSession opcSession = new OpcSession(endpointUrl, currentNodePublishingConfiguration.UseSecurity, OpcSessionCreationTimeout, currentNodePublishingConfiguration.OpcAuthenticationMode, encryptedAuthCredential);
+                    IOpcSession opcSession = new OpcSession(currentNodePublishingConfiguration.EndpointId, currentNodePublishingConfiguration.EndpointName, currentNodePublishingConfiguration.EndpointUrl, currentNodePublishingConfiguration.UseSecurity, OpcSessionCreationTimeout, currentNodePublishingConfiguration.OpcAuthenticationMode, encryptedAuthCredential);
 
                     // create a subscription for each distinct publishing inverval
-                    var nodesDistinctPublishingInterval = _nodePublishingConfiguration.Where(n => n.EndpointUrl.Equals(endpointUrl, StringComparison.OrdinalIgnoreCase)).Select(c => c.OpcPublishingInterval).Distinct();
+                    var nodesDistinctPublishingInterval = _nodePublishingConfiguration.Where(n => n.EndpointId.Equals(currentNodePublishingConfiguration.EndpointId)).Select(c => c.OpcPublishingInterval).Distinct();
                     foreach (var nodeDistinctPublishingInterval in nodesDistinctPublishingInterval)
                     {
                         // create a subscription for the publishing interval and add it to the session.
                         IOpcSubscription opcSubscription = new OpcSubscription(nodeDistinctPublishingInterval);
 
                         // add all nodes with this OPC publishing interval to this subscription.
-                        var nodesWithSamePublishingInterval = _nodePublishingConfiguration.Where(n => n.EndpointUrl.Equals(endpointUrl, StringComparison.OrdinalIgnoreCase)).Where(n => n.OpcPublishingInterval == nodeDistinctPublishingInterval);
+                        var nodesWithSamePublishingInterval = _nodePublishingConfiguration.Where(n => n.EndpointId.Equals(currentNodePublishingConfiguration.EndpointId)).Where(n => n.OpcPublishingInterval == nodeDistinctPublishingInterval);
                         foreach (var nodeInfo in nodesWithSamePublishingInterval)
                         {
                             // differentiate if NodeId or ExpandedNodeId format is used
@@ -681,6 +690,7 @@ namespace OpcPublisher
                                 // create a monitored item for the node, we do not have the namespace index without a connected session.
                                 // so request a namespace update.
                                 OpcMonitoredItem opcMonitoredItem = new OpcMonitoredItem(nodeInfo.ExpandedNodeId,
+                                    opcSession.EndpointId,
                                     opcSession.EndpointUrl,
                                     nodeInfo.OpcSamplingInterval, nodeInfo.DisplayName, nodeInfo.HeartbeatInterval,
                                     nodeInfo.SkipFirst, nodeInfo.IotCentralItemPublishMode);
@@ -691,6 +701,7 @@ namespace OpcPublisher
                             {
                                 // create a monitored item for the node with the configured or default sampling interval
                                 OpcMonitoredItem opcMonitoredItem = new OpcMonitoredItem(nodeInfo.NodeId,
+                                    opcSession.EndpointId,
                                     opcSession.EndpointUrl,
                                     nodeInfo.OpcSamplingInterval, nodeInfo.DisplayName, nodeInfo.HeartbeatInterval,
                                     nodeInfo.SkipFirst, nodeInfo.IotCentralItemPublishMode);
@@ -712,10 +723,10 @@ namespace OpcPublisher
                 }
 
                 // create data for event configuration
-                var uniqueEventsEndpointUrls = _eventConfiguration.Select(n => n.EndpointUrl).Distinct();
-                foreach (var endpointUrl in uniqueEventsEndpointUrls)
+                var uniqueEventsEndpointIds = _eventConfiguration.Select(n => new Guid(n.EndpointId)).Distinct();
+                foreach (var endpointId in uniqueEventsEndpointIds)
                 {
-                    var eventConfiguration = _eventConfiguration.First(n => n.EndpointUrl == endpointUrl);
+                    var eventConfiguration = _eventConfiguration.First(n => n.EndpointId == endpointId.ToString());
 
                     EncryptedNetworkCredential encryptedAuthCredential = null;
 
@@ -732,31 +743,32 @@ namespace OpcPublisher
                     bool addSession = false;
 
                     // create new session info, if needed
-                    IOpcSession opcSession = OpcSessions.Find(s => s.EndpointUrl == endpointUrl);
+                    IOpcSession opcSession = OpcSessions.Find(s => s.EndpointId == endpointId);
                     if (opcSession == null)
                     {
-                        opcSession = new OpcSession(endpointUrl, _eventConfiguration.Where(n => n.EndpointUrl == endpointUrl).First().UseSecurity, OpcSessionCreationTimeout, eventConfiguration.OpcAuthenticationMode, encryptedAuthCredential);
+                        var eventConfig = _eventConfiguration.Where(n => n.EndpointId == endpointId.ToString()).First();
+                        opcSession = new OpcSession(endpointId, eventConfig.EndpointName, eventConfig.EndpointUrl, eventConfig.UseSecurity, OpcSessionCreationTimeout, eventConfiguration.OpcAuthenticationMode, encryptedAuthCredential);
                         addSession = true;
                     }
 
                     // create a subscription for each event source
-                    var distinctEventSources = _eventConfiguration.Where(n => n.EndpointUrl.Equals(endpointUrl, StringComparison.OrdinalIgnoreCase)).Select(c => c.Id).Distinct();
+                    var distinctEventSources = _eventConfiguration.Where(n => n.EndpointId.Equals(endpointId.ToString())).Select(c => c.Id).Distinct();
                     foreach (var distinctEventSource in distinctEventSources)
                     {
                         // create a subscription for the event source and add it to ´the session
                         IOpcSubscription opcSubscription = new OpcSubscription(distinctEventSource);
 
                         // add all event subscriptions for this event source in the subscription.
-                        var eventsWithTheSameSource = _eventConfiguration.Where(n => n.EndpointUrl.Equals(endpointUrl, StringComparison.OrdinalIgnoreCase)).Where(n => n.Id == distinctEventSource);
+                        var eventsWithTheSameSource = _eventConfiguration.Where(n => n.EndpointId.Equals(endpointId.ToString())).Where(n => n.Id == distinctEventSource);
                         foreach (var opcEvent in eventsWithTheSameSource)
                         {
                             if (opcEvent.SelectClauses == null || opcEvent.SelectClauses.Count == 0)
                             {
-                                string errorMessage = $"An event configuration needs to have at least one SelectClause. The configuration for EndpointUrl '{opcEvent.EndpointUrl}' and Id '{opcEvent.Id}' has none.";
+                                string errorMessage = $"An event configuration needs to have at least one SelectClause. The configuration for EndpointId '{opcEvent.EndpointId}' and Id '{opcEvent.Id}' has none.";
                                 Logger.Error(errorMessage);
                                 throw new Exception(errorMessage);
                             }
-                            OpcMonitoredItem opcMonitoredItem = new OpcMonitoredItem(opcEvent, opcSession.EndpointUrl);
+                            OpcMonitoredItem opcMonitoredItem = new OpcMonitoredItem(opcEvent, opcSession.EndpointId, opcSession.EndpointUrl);
                             opcSubscription.OpcMonitoredItems.Add(opcMonitoredItem);
                             Interlocked.Increment(ref NodeConfigVersion);
                         }
@@ -787,7 +799,7 @@ namespace OpcPublisher
             {
                 foreach (var opcSession in OpcSessions)
                 {
-                    Logger.Debug($"Session to endpoint URL '{opcSession.EndpointUrl}', use security: {opcSession.UseSecurity}");
+                    Logger.Debug($"Session to endpoint '{opcSession.EndpointId}': '{opcSession.EndpointName}' (URL '{opcSession.EndpointUrl}'), use security: {opcSession.UseSecurity}");
                     foreach (var opcSubscription in opcSession.OpcSubscriptions)
                     {
                         Logger.Debug($"  Susbscription for DataChange with requested PublishingInterval '{opcSubscription.RequestedPublishingInterval}'");
@@ -852,7 +864,7 @@ namespace OpcPublisher
         /// Returns a list of all published nodes for a specific endpoint in config file format.
         /// </summary>
         /// <returns></returns>
-        public List<PublisherConfigurationFileEntryModel> GetPublisherConfigurationFileEntries(string endpointUrl, bool getAll, out uint nodeConfigVersion)
+        public List<PublisherConfigurationFileEntryModel> GetPublisherConfigurationFileEntries(Guid endpointId, bool getAll, out uint nodeConfigVersion)
         {
             List<PublisherConfigurationFileEntryModel> publisherConfigurationFileEntries = new List<PublisherConfigurationFileEntryModel>();
             nodeConfigVersion = (uint)NodeConfigVersion;
@@ -871,10 +883,12 @@ namespace OpcPublisher
                         try
                         {
                             sessionLocked = session.LockSessionAsync().Result;
-                            if (sessionLocked && (endpointUrl == null || session.EndpointUrl.Equals(endpointUrl, StringComparison.OrdinalIgnoreCase)))
+                            if (sessionLocked && (endpointId.Equals(Guid.Empty) || session.EndpointId.Equals(endpointId)))
                             {
                                 PublisherConfigurationFileEntryModel publisherConfigurationFileEntry = new PublisherConfigurationFileEntryModel();
 
+                                publisherConfigurationFileEntry.EndpointId = session.EndpointId;
+                                publisherConfigurationFileEntry.EndpointName = session.EndpointName;
                                 publisherConfigurationFileEntry.EndpointUrl = new Uri(session.EndpointUrl);
                                 publisherConfigurationFileEntry.OpcAuthenticationMode = session.OpcAuthenticationMode;
                                 publisherConfigurationFileEntry.EncryptedAuthCredential = session.EncryptedAuthCredential;
@@ -1044,7 +1058,7 @@ namespace OpcPublisher
             try
             {
                 // itereate through all sessions, subscriptions and monitored items and create config file entries
-                List<PublisherConfigurationFileEntryModel> publisherNodeConfiguration = GetPublisherConfigurationFileEntries(null, true, out uint nodeConfigVersion);
+                List<PublisherConfigurationFileEntryModel> publisherNodeConfiguration = GetPublisherConfigurationFileEntries(Guid.Empty, true, out uint nodeConfigVersion);
 
                 // update the config file
                 try

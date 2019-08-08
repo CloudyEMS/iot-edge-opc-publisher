@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 
 namespace OpcPublisher
 {
+    using System;
     using System.Threading;
 
     public interface IPublisherNodeConfiguration
@@ -113,7 +114,7 @@ namespace OpcPublisher
         /// Returns a list of all published nodes for a specific endpoint in config file format.
         /// </summary>
         /// <returns></returns>
-        List<PublisherConfigurationFileEntryModel> GetPublisherConfigurationFileEntries(string endpointUrl, bool getAll, out uint nodeConfigVersion);
+        List<PublisherConfigurationFileEntryModel> GetPublisherConfigurationFileEntries(Guid endpointId, bool getAll, out uint nodeConfigVersion);
 
         /// <summary>
         /// Returns a list of all configured nodes in NodeId format.

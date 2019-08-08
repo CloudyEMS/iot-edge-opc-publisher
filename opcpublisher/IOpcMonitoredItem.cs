@@ -3,6 +3,7 @@
 namespace OpcPublisher
 {
     using Opc.Ua;
+    using System;
     using static OpcMonitoredItem;
 
     /// <summary>
@@ -64,6 +65,11 @@ namespace OpcPublisher
         /// The event handler of the node in case the OPC UA stack detected a change.
         /// </summary>
         MonitoredItemNotificationEventHandler NotificationEventHandler { get; set; }
+
+        /// <summary>
+        /// The endpoint ID of the OPC UA server this nodes is residing on.
+        /// </summary>
+        Guid EndpointId { get; set; }
 
         /// <summary>
         /// The endpoint URL of the OPC UA server this nodes is residing on.

@@ -17,7 +17,17 @@ namespace OpcPublisher
     public interface IOpcSession : IDisposable
     {
         /// <summary>
-        /// The endpoint to connect to for the session.
+        /// The id of the endpoint to connect to for the session.
+        /// </summary>
+        Guid EndpointId { get; set; }
+
+         /// <summary>
+        /// The name of the endpoint to connect to for the session.
+        /// </summary>
+        string EndpointName { get; set; }
+
+        /// <summary>
+        /// The URL of the endpoint to connect to for the session.
         /// </summary>
         string EndpointUrl { get; set; }
 

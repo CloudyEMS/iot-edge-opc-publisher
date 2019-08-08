@@ -77,11 +77,17 @@ namespace OpcPublisher
         {
         }
 
-        public PublisherConfigurationFileEntryModel(string endpointUrl)
+        public PublisherConfigurationFileEntryModel(Guid endpointId, string endpointName, string endpointUrl)
         {
+            EndpointId = endpointId;
+            EndpointName = endpointName;
             EndpointUrl = new Uri(endpointUrl);
             OpcNodes = new List<OpcNodeOnEndpointModel>();
         }
+
+        public Guid EndpointId { get; set; }
+
+        public string EndpointName { get; set; }
 
         public Uri EndpointUrl { get; set; }
 
@@ -158,6 +164,16 @@ namespace OpcPublisher
     public class NodePublishingConfigurationModel
     {
         /// <summary>
+        /// The endpoint ID of the OPC UA server.
+        /// </summary>
+        public Guid EndpointId { get; set; }
+
+        /// <summary>
+        /// The endpoint name of the OPC UA server.
+        /// </summary>
+        public string EndpointName{ get; set; } 
+
+        /// <summary>
         /// The endpoint URL of the OPC UA server.
         /// </summary>
         public string EndpointUrl { get; set; }
@@ -224,13 +240,15 @@ namespace OpcPublisher
         /// <summary>
         /// Ctor of the object.
         /// </summary>
-        public NodePublishingConfigurationModel(ExpandedNodeId expandedNodeId, string id, string endpointUrl, bool? useSecurity,
+        public NodePublishingConfigurationModel(string id, Guid endpointId, string endpointName, string endpointUrl, bool? useSecurity,
                     int? opcPublishingInterval, int? opcSamplingInterval, string displayName, int? heartbeatInterval, bool? skipFirst,
                     OpcAuthenticationMode opcAuthenticationMode, EncryptedNetworkCredential encryptedAuthCredential, IotCentralItemPublishMode? iotCentralItemPublishMode)
         {
             NodeId = null;
-            ExpandedNodeId = expandedNodeId;
+            ExpandedNodeId = null;
             Id = id;
+            EndpointId = endpointId;
+            EndpointName = endpointName;
             EndpointUrl = endpointUrl;
             UseSecurity = useSecurity ?? true;
             DisplayName = displayName;
@@ -246,23 +264,23 @@ namespace OpcPublisher
         /// <summary>
         /// Ctor of the object.
         /// </summary>
-        public NodePublishingConfigurationModel(NodeId nodeId, string originalId, string endpointUrl, bool? useSecurity,
+        public NodePublishingConfigurationModel(ExpandedNodeId expandedNodeId, string id, Guid endpointId, string endpointName, string endpointUrl, bool? useSecurity,
                     int? opcPublishingInterval, int? opcSamplingInterval, string displayName, int? heartbeatInterval, bool? skipFirst,
-                    OpcAuthenticationMode opcAuthenticationMode,EncryptedNetworkCredential encryptedAuthCredential, IotCentralItemPublishMode? iotCentralItemPublishMode)
+                    OpcAuthenticationMode opcAuthenticationMode, EncryptedNetworkCredential encryptedAuthCredential, IotCentralItemPublishMode? iotCentralItemPublishMode)
+            : this(id, endpointId, endpointName, endpointUrl, useSecurity, opcPublishingInterval, opcSamplingInterval, displayName, heartbeatInterval, skipFirst, opcAuthenticationMode,  encryptedAuthCredential, iotCentralItemPublishMode)
+        {
+            ExpandedNodeId = expandedNodeId;
+        }
+
+        /// <summary>
+        /// Ctor of the object.
+        /// </summary>
+        public NodePublishingConfigurationModel(NodeId nodeId, string originalId, Guid endpointId, string endpointName, string endpointUrl, bool? useSecurity,
+                    int? opcPublishingInterval, int? opcSamplingInterval, string displayName, int? heartbeatInterval, bool? skipFirst,
+                    OpcAuthenticationMode opcAuthenticationMode, EncryptedNetworkCredential encryptedAuthCredential, IotCentralItemPublishMode? iotCentralItemPublishMode)
+            : this(originalId, endpointId, endpointName, endpointUrl, useSecurity, opcPublishingInterval, opcSamplingInterval, displayName, heartbeatInterval, skipFirst, opcAuthenticationMode,  encryptedAuthCredential, iotCentralItemPublishMode)
         {
             NodeId = nodeId;
-            ExpandedNodeId = null;
-            Id = originalId;
-            EndpointUrl = endpointUrl;
-            UseSecurity = useSecurity ?? true;
-            DisplayName = displayName;
-            OpcSamplingInterval = opcSamplingInterval;
-            OpcPublishingInterval = opcPublishingInterval;
-            HeartbeatInterval = heartbeatInterval;
-            SkipFirst = skipFirst;
-            IotCentralItemPublishMode = iotCentralItemPublishMode;
-            OpcAuthenticationMode = opcAuthenticationMode;
-            EncryptedAuthCredential = encryptedAuthCredential;
         }
     }
 
@@ -272,7 +290,17 @@ namespace OpcPublisher
     public class EventConfigurationModel
     {
         /// <summary>
-        /// The endpoint URL of the OPC UA server.
+        /// The endpoint ID of the OPC UA server.
+        /// </summary>
+        public string EndpointId { get; set; }
+
+        /// <summary>
+        /// The endpoint name of the OPC UA server.
+        /// </summary>
+        public string EndpointName { get; set; }
+
+        /// <summary>
+        /// The endpoint url of the OPC UA server.
         /// </summary>
         public string EndpointUrl { get; set; }
 
@@ -324,6 +352,8 @@ namespace OpcPublisher
         /// Ctor of the object.
         /// </summary>
         public EventConfigurationModel(
+            string endpointId, 
+            string endpointName,
             string endpointUrl,
             bool? useSecurity,
             OpcAuthenticationMode opcAuthenticationMode, 
@@ -333,6 +363,8 @@ namespace OpcPublisher
             List<WhereClauseElement> whereClause,
             IotCentralEventPublishMode? iotCentralEventPublishMode = null)
         {
+            EndpointId = endpointId;
+            EndpointName = endpointName;
             EndpointUrl = endpointUrl;
             UseSecurity = useSecurity ?? true;
             OpcAuthenticationMode = opcAuthenticationMode;
@@ -372,6 +404,16 @@ namespace OpcPublisher
             OpcNodes = new List<OpcNodeOnEndpointModel>();
             OpcEvents = new List<OpcEventOnEndpointModel>();
         }
+
+        /// <summary>
+        /// The endpoint ID of the OPC UA server.
+        /// </summary>
+        public Guid EndpointId { get; set; }
+
+         /// <summary>
+        /// The endpoint name of the OPC UA server.
+        /// </summary>
+        public string EndpointName { get; set; }
 
         /// <summary>
         /// The endpoint URL of the OPC UA server.

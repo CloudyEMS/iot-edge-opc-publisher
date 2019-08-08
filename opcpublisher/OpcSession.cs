@@ -62,6 +62,16 @@ namespace OpcPublisher
         /// <summary>
         /// The endpoint to connect to for the session.
         /// </summary>
+        public Guid EndpointId { get; set; }
+
+        /// <summary>
+        /// The endpoint name to connect to for the session.
+        /// </summary>
+        public string EndpointName { get; set; }
+
+        /// <summary>
+        /// The endpoint to connect to for the session.
+        /// </summary>
         public string EndpointUrl { get; set; }
 
         /// <summary>
@@ -327,9 +337,11 @@ namespace OpcPublisher
         /// <summary>
         /// Ctor for the session.
         /// </summary>
-        public OpcSession(string endpointUrl, bool useSecurity, uint sessionTimeout, OpcAuthenticationMode opcAuthenticationMode, EncryptedNetworkCredential encryptedAuthCredential)
+        public OpcSession(Guid endpointId, string endpointName, string endpointUrl, bool useSecurity, uint sessionTimeout, OpcAuthenticationMode opcAuthenticationMode, EncryptedNetworkCredential encryptedAuthCredential)
         {
             State = SessionState.Disconnected;
+            EndpointId = endpointId;
+            EndpointName = endpointName;
             EndpointUrl = endpointUrl;
             SessionTimeout = sessionTimeout * 1000;
             OpcSubscriptions = new List<IOpcSubscription>();
@@ -529,7 +541,7 @@ namespace OpcPublisher
                     throw;
                 }
 
-                Logger.Information($"Connect and monitor session and nodes on endpoint '{EndpointUrl}'.");
+                Logger.Information($"Connect and monitor session and nodes on endpoint '{EndpointId}': '{EndpointName}' (URL '{EndpointUrl}').");
                 State = SessionState.Connecting;
                 try
                 {
@@ -1426,11 +1438,11 @@ namespace OpcPublisher
                     // add a new item to monitor
                     if (expandedNodeId == null)
                     {
-                        opcMonitoredItem = new OpcMonitoredItem(nodeId, EndpointUrl, opcSamplingInterval, displayName, heartbeatInterval, skipFirst, iotCentralItemPublishMode);
+                        opcMonitoredItem = new OpcMonitoredItem(nodeId, EndpointId, EndpointUrl, opcSamplingInterval, displayName, heartbeatInterval, skipFirst, iotCentralItemPublishMode);
                     }
                     else
                     {
-                        opcMonitoredItem = new OpcMonitoredItem(expandedNodeId, EndpointUrl, opcSamplingInterval, displayName, heartbeatInterval, skipFirst, iotCentralItemPublishMode);
+                        opcMonitoredItem = new OpcMonitoredItem(expandedNodeId, EndpointId, EndpointUrl, opcSamplingInterval, displayName, heartbeatInterval, skipFirst, iotCentralItemPublishMode);
                     }
                     opcSubscription.OpcMonitoredItems.Add(opcMonitoredItem);
                     Interlocked.Increment(ref NodeConfigVersion);

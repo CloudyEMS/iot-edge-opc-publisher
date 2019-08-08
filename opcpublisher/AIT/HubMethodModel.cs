@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 using Newtonsoft.Json;
 using OpcPublisher;
 
@@ -23,7 +21,7 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.AIT
         }
 
         [JsonProperty(NullValueHandling = NullValueHandling.Include)]
-        public string EndpointUrl { get; set; }
+        public string EndpointId { get; set; }
 
         [JsonProperty(NullValueHandling = NullValueHandling.Include)]
         public List<OpcEventOnEndpointModel> EventNodes { get; }

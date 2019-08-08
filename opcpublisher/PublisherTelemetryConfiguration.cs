@@ -292,6 +292,25 @@ namespace OpcPublisher
     public class EndpointTelemetryConfigurationModel
     {
         /// <summary>
+        /// Specifies the endpoint ID the telemetry should be configured for.
+        /// </summary>
+        public Guid ForEndpointId { get; set; }
+
+        /// <summary>
+        /// Specifies the configuration for the value EndpointUrl.
+        /// </summary>
+        public ITelemetrySettings EndpointId
+        {
+            get => _endpointId;
+            set
+            {
+                _endpointId.Publish = value.Publish;
+                _endpointId.Name = value.Name;
+                _endpointId.Pattern = value.Pattern;
+            }
+        }
+
+        /// <summary>
         /// Specifies the endpoint URL the telemetry should be configured for.
         /// </summary>
         public string ForEndpointUrl { get; set; }
@@ -370,6 +389,8 @@ namespace OpcPublisher
         /// </summary>
         public EndpointTelemetryConfigurationModel()
         {
+            ForEndpointId = Guid.Empty;
+            _endpointId = new TelemetrySettings();
             ForEndpointUrl = null;
             _endpointUrl = new TelemetrySettings();
             _nodeId = new TelemetrySettings();
@@ -378,6 +399,7 @@ namespace OpcPublisher
             _value = new ValueTelemetryConfiguration();
         }
 
+        private TelemetrySettings _endpointId;
         private TelemetrySettings _endpointUrl;
         private MonitoredItemTelemetryConfiguration _monitoredItem;
         private ValueTelemetryConfiguration _value;
