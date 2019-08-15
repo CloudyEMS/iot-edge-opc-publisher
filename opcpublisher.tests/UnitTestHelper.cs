@@ -31,8 +31,8 @@ namespace OpcPublisher
         {
             // wait till monitoring starts
             int iter = 0;
-            long numberOfEventsStart = HubCommunicationBase.NumberOfEvents;
-            while ((NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored == 0 || (HubCommunicationBase.NumberOfEvents - numberOfEventsStart) == 0) && iter < _maxIterations)
+            long numberOfEventsStart = HubCommunicationBase.NumberOfDataChangeEvents;
+            while ((NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored == 0 || (HubCommunicationBase.NumberOfDataChangeEvents - numberOfEventsStart) == 0) && iter < _maxIterations)
             {
                 Thread.Sleep(_sleepMilliseconds);
                 iter++;
