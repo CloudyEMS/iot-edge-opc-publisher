@@ -120,6 +120,12 @@ namespace OpcPublisher
         public const TransportType IotEdgeHubProtocolDefault = TransportType.Amqp_Tcp_Only;
         public static TransportType HubProtocol { get; set; } = IotHubProtocolDefault;
 
+        // On top of the message type "application/json+uajson" we need to
+        // know how the data is structured to find measurement keys and values
+        public const string MessageSchemaPropertyName = "x-message-schema";
+        public const string MessageSchemaIotCentral = "opcua_iotcentral";
+        public const string MessageSchemaIotHub = "opcua_iothub";
+
         /// <summary>
         /// Dictionary of available IoTHub direct methods.
         /// </summary>
@@ -1630,6 +1636,10 @@ namespace OpcPublisher
                             await _jsonWriter.WriteEndObjectAsync().ConfigureAwait(false);
                         }
                     }
+                    
+                    await _jsonWriter.WritePropertyNameAsync("messageType").ConfigureAwait(false);
+                    await _jsonWriter.WriteValueAsync("measurement").ConfigureAwait(false);
+
                     await _jsonWriter.WriteEndObjectAsync().ConfigureAwait(false);
                     await _jsonWriter.FlushAsync().ConfigureAwait(false);
                 }
@@ -1734,6 +1744,10 @@ namespace OpcPublisher
                         await _jsonWriter.WritePropertyNameAsync(telemetryConfiguration.Value.PublishTime.Name).ConfigureAwait(false);
                         await _jsonWriter.WriteValueAsync(eventData.PublishTime).ConfigureAwait(false);
                     }
+                    
+                    await _jsonWriter.WritePropertyNameAsync("messageType").ConfigureAwait(false);
+                    await _jsonWriter.WriteValueAsync("event").ConfigureAwait(false);
+
                     await _jsonWriter.WriteEndObjectAsync().ConfigureAwait(false);
                     await _jsonWriter.FlushAsync().ConfigureAwait(false);
                 }
@@ -1761,6 +1775,8 @@ namespace OpcPublisher
                     await _jsonWriter.WriteStartObjectAsync().ConfigureAwait(false);
                     await _jsonWriter.WritePropertyNameAsync(messageData.DisplayName).ConfigureAwait(false);
                     await _jsonWriter.WriteValueAsync(messageData.Value).ConfigureAwait(false);
+                    await _jsonWriter.WritePropertyNameAsync("messageType").ConfigureAwait(false);
+                    await _jsonWriter.WriteValueAsync("measurement").ConfigureAwait(false);
                     await _jsonWriter.WriteEndObjectAsync().ConfigureAwait(false);
                     await _jsonWriter.FlushAsync().ConfigureAwait(false);
                 }
@@ -1932,6 +1948,11 @@ namespace OpcPublisher
                             {
                                 encodedhubMessage.ContentType = CONTENT_TYPE_OPCUAJSON;
                                 encodedhubMessage.ContentEncoding = CONTENT_ENCODING_UTF8;
+
+                                // Mimic the condition for encoding...
+                                // Note that events are always encoded with default schema, IotCentralMode only affects data
+                                encodedhubMessage.Properties[MessageSchemaPropertyName] = 
+                                    (IotCentralMode && dataChangeMessageData != null) ? MessageSchemaIotCentral : MessageSchemaIotHub;
 
                                 nextSendTime += TimeSpan.FromSeconds(DefaultSendIntervalSeconds);
                                 try

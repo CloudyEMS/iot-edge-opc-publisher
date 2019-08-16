@@ -213,23 +213,24 @@ namespace OpcPublisher
                             continue;
                         }
 
-                        // if there is no batching and no send interval configured, we send the JSON message we just got, otherwise we send the buffer
-                        if (_singleMessageSend)
-                        {
-                            // create the message without brackets
-                            encodedhubMessage = new Message(Encoding.UTF8.GetBytes(_jsonMessage.ToString(CultureInfo.InvariantCulture)));
-                        }
-                        else
-                        {
-                            // remove the trailing comma and add a closing square bracket
-                            _hubMessage.SetLength(_hubMessage.Length - 1);
-                            _hubMessage.Write(Encoding.UTF8.GetBytes("]"), 0, 1);
-                            encodedhubMessage = new Message(_hubMessage.ToArray());
-                        }
-                        if (_hubClient != null)
-                        {
-                            encodedhubMessage.ContentType = CONTENT_TYPE_OPCUAJSON;
-                            encodedhubMessage.ContentEncoding = CONTENT_ENCODING_UTF8;
+                    // if there is no batching and no send interval configured, we send the JSON message we just got, otherwise we send the buffer
+                    if (_singleMessageSend)
+                    {
+                        // create the message without brackets
+                        encodedhubMessage = new Message(Encoding.UTF8.GetBytes(_jsonMessage.ToString(CultureInfo.InvariantCulture)));
+                    }
+                    else
+                    {
+                        // remove the trailing comma and add a closing square bracket
+                        _hubMessage.SetLength(_hubMessage.Length - 1);
+                        _hubMessage.Write(Encoding.UTF8.GetBytes("]"), 0, 1);
+                        encodedhubMessage = new Message(_hubMessage.ToArray());
+                    }
+                    if (_hubClient != null)
+                    {
+                        encodedhubMessage.ContentType = CONTENT_TYPE_OPCUAJSON;
+                        encodedhubMessage.ContentEncoding = CONTENT_ENCODING_UTF8;
+                        encodedhubMessage.Properties[HubCommunicationBase.MessageSchemaPropertyName] = HubCommunicationBase.MessageSchemaIotCentral;
 
                             _nextSendTime += TimeSpan.FromSeconds(DefaultSendIoTcIntervalSeconds);
                             try
@@ -332,6 +333,8 @@ namespace OpcPublisher
                         s.Value
                     }));
                     await jsonWriter.WriteValueAsync(eventValues, shutdownToken).ConfigureAwait(false);
+                    await jsonWriter.WritePropertyNameAsync("messageType", shutdownToken).ConfigureAwait(false);
+                    await jsonWriter.WriteValueAsync("event", shutdownToken).ConfigureAwait(false);
                     await jsonWriter.WriteEndObjectAsync(shutdownToken).ConfigureAwait(false);
                     await jsonWriter.FlushAsync(shutdownToken).ConfigureAwait(false);
                 }
