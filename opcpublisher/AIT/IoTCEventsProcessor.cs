@@ -1,29 +1,23 @@
-using Serilog.Core;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.Devices.Client;
-using Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.AIT;
 using Newtonsoft.Json;
-using Opc.Ua;
+using Serilog;
 
 namespace OpcPublisher
 {
-    using static OpcApplicationConfiguration;
-    using static Program;
 
     public class IoTCEventsProcessor : IDisposable
     {
         private const string CONTENT_TYPE_OPCUAJSON = "application/opcua+uajson";
         private const string CONTENT_ENCODING_UTF8 = "UTF-8";
-        private readonly Logger _logger;
+        private readonly ILogger _logger;
         private readonly IHubClient _hubClient;
         private static BlockingCollection<MessageData> _monitoredIoTcEventDataQueue;
         private bool _iotCentralMode;
@@ -38,14 +32,8 @@ namespace OpcPublisher
         private int _jsonMessageSize;
         private uint _hubMessageBufferSize;
         private MemoryStream _hubMessage;
-        private DateTime _nextSendTime;
         private bool _singleMessageSend;
 
-        /// <summary>
-        /// Specifies the send interval in seconds after which a message is sent to the hub.
-        /// </summary>
-        public static int DefaultSendIoTcIntervalSeconds { get; set; } = 10;
-        
         /// <summary>
         /// Number of times we were not able to make the IoTCentral send interval, because too high load.
         /// </summary>
@@ -76,10 +64,10 @@ namespace OpcPublisher
         /// </summary>
         public static int MonitoredSettingsIoTcEventCapacity { get; set; } = 8192;
 
-        public IoTCEventsProcessor(Logger logger, IHubClient hubClient, bool iotCentralMode, uint hubMessageSize, uint hubMessageSizeMax, int timeout, CancellationToken shutdownToken)
+        public IoTCEventsProcessor(ILogger logger, IHubClient hubClient, bool iotCentralMode, uint hubMessageSize, uint hubMessageSizeMax, int timeout, CancellationToken shutdownToken)
         {
             _logger = logger;
-            _hubClient = hubClient;            
+            _hubClient = hubClient;
             _iotCentralMode = iotCentralMode;
             _hubMessageSize = hubMessageSize;
             _hubMessageSizeMax = hubMessageSizeMax;
@@ -110,7 +98,7 @@ namespace OpcPublisher
             while (!_shutdownToken.IsCancellationRequested)
             {
                 try
-                {                    
+                {
                     // sanity check the send interval, compute the timeout and get the next monitored item message
                     if (_timeout > 0)
                     {
@@ -148,9 +136,9 @@ namespace OpcPublisher
                             if ((_hubMessageSize > 0 && _jsonMessageSize > _hubMessageSize) ||
                                 (_hubMessageSize == 0 && _jsonMessageSize > _hubMessageBufferSize))
                             {
-                                Logger.Error(
+                                _logger.Error(
                                     $"There is a IoT Central event message (size: {_jsonMessageSize}), which will not fit into an hub message (max size: {_hubMessageBufferSize}].");
-                                Logger.Error(
+                                _logger.Error(
                                     $"Please check your hub message size settings. The IoT Central event message will be discarded silently. Sorry:(");
                                 TooLargeCount++;
                                 continue;
@@ -158,7 +146,7 @@ namespace OpcPublisher
 
                             // if batching is requested or we need to send at intervals, batch it otherwise send it right away
                             _needToBufferMessage = false;
-                            if (_hubMessageSize > 0 || (_hubMessageSize == 0 && DefaultSendIoTcIntervalSeconds > 0))
+                            if (_hubMessageSize > 0 || (_hubMessageSize == 0 && _timeout > 0))
                             {
                                 // if there is still space to batch, do it. otherwise send the buffer and flag the message for later buffering
                                 if (_hubMessage.Position + _jsonMessageSize + 1 <= _hubMessage.Capacity)
@@ -168,7 +156,7 @@ namespace OpcPublisher
                                         Encoding.UTF8.GetBytes(_jsonMessage.ToString(CultureInfo.InvariantCulture)),
                                         0, _jsonMessageSize);
                                     _hubMessage.Write(Encoding.UTF8.GetBytes(","), 0, 1);
-                                    Logger.Debug(
+                                    _logger.Debug(
                                         $"Added new IoT Central event message with size {_jsonMessageSize} to hub message (size is now {(_hubMessage.Position - 1)}).");
                                     continue;
                                 }
@@ -180,7 +168,7 @@ namespace OpcPublisher
                         }
                         else
                         {
-                            Logger.Error("Configuration of IoT-Central events is only possible in IoT Central mode");
+                            _logger.Error("Configuration of IoT-Central events is only possible in IoT Central mode");
                         }
                     }
                     else
@@ -188,7 +176,7 @@ namespace OpcPublisher
                         // if we got no message, we either reached the interval or we are in shutdown and have processed all messages
                         if (_shutdownToken.IsCancellationRequested)
                         {
-                            Logger.Information($"Cancellation requested.");
+                            _logger.Information($"Cancellation requested.");
                             _monitoredIoTcEventDataQueue.CompleteAdding();
                             _monitoredIoTcEventDataQueue.Dispose();
                             return;
@@ -203,7 +191,7 @@ namespace OpcPublisher
                         // if we reached the send interval, but have nothing to send (only the opening square bracket is there), we continue
                         if (!gotItem && _hubMessage.Position == 1)
                         {
-                            _nextSendTime += TimeSpan.FromSeconds(DefaultSendIoTcIntervalSeconds);
+                            nextSendTime += TimeSpan.FromSeconds(_timeout);
                             _hubMessage.Position = 0;
                             _hubMessage.SetLength(0);
                             if (!_singleMessageSend)
@@ -213,34 +201,34 @@ namespace OpcPublisher
                             continue;
                         }
 
-                    // if there is no batching and no send interval configured, we send the JSON message we just got, otherwise we send the buffer
-                    if (_singleMessageSend)
-                    {
-                        // create the message without brackets
-                        encodedhubMessage = new Message(Encoding.UTF8.GetBytes(_jsonMessage.ToString(CultureInfo.InvariantCulture)));
-                    }
-                    else
-                    {
-                        // remove the trailing comma and add a closing square bracket
-                        _hubMessage.SetLength(_hubMessage.Length - 1);
-                        _hubMessage.Write(Encoding.UTF8.GetBytes("]"), 0, 1);
-                        encodedhubMessage = new Message(_hubMessage.ToArray());
-                    }
-                    if (_hubClient != null)
-                    {
-                        encodedhubMessage.ContentType = CONTENT_TYPE_OPCUAJSON;
-                        encodedhubMessage.ContentEncoding = CONTENT_ENCODING_UTF8;
-                        encodedhubMessage.Properties[HubCommunicationBase.MessageSchemaPropertyName] = HubCommunicationBase.MessageSchemaIotCentral;
+                        // if there is no batching and no send interval configured, we send the JSON message we just got, otherwise we send the buffer
+                        if (_singleMessageSend)
+                        {
+                            // create the message without brackets
+                            encodedhubMessage = new Message(Encoding.UTF8.GetBytes(_jsonMessage.ToString(CultureInfo.InvariantCulture)));
+                        }
+                        else
+                        {
+                            // remove the trailing comma and add a closing square bracket
+                            _hubMessage.SetLength(_hubMessage.Length - 1);
+                            _hubMessage.Write(Encoding.UTF8.GetBytes("]"), 0, 1);
+                            encodedhubMessage = new Message(_hubMessage.ToArray());
+                        }
+                        if (_hubClient != null)
+                        {
+                            encodedhubMessage.ContentType = CONTENT_TYPE_OPCUAJSON;
+                            encodedhubMessage.ContentEncoding = CONTENT_ENCODING_UTF8;
+                            encodedhubMessage.Properties[HubCommunicationBase.MessageSchemaPropertyName] = HubCommunicationBase.MessageSchemaIotCentral;
 
-                            _nextSendTime += TimeSpan.FromSeconds(DefaultSendIoTcIntervalSeconds);
+                            nextSendTime += TimeSpan.FromSeconds(_timeout);
                             try
                             {
                                 encodedhubMessage.Properties["endpointId"] = eventMessageData.EndpointId;
                                 SentIoTcBytes += encodedhubMessage.GetBytes().Length;
                                 await _hubClient.SendEventAsync(encodedhubMessage).ConfigureAwait(false);
                                 SentIoTcEvents++;
-                                Logger.Debug($"Sending {encodedhubMessage.BodyStream.Length} bytes to hub.");
-                                Logger.Debug($"Message sent was: {_jsonMessage}");
+                                _logger.Debug($"Sending {encodedhubMessage.BodyStream.Length} bytes to hub.");
+                                _logger.Debug($"Message sent was: {_jsonMessage}");
                             }
                             catch
                             {
@@ -265,19 +253,19 @@ namespace OpcPublisher
                         }
                         else
                         {
-                            Logger.Information("No hub client available. Dropping messages...");
+                            _logger.Information("No hub client available. Dropping messages...");
                         }
                     }
                     catch (Exception e)
                     {
-                        Logger.Error(e, "Exception while sending message to hub. Dropping message...");
+                        _logger.Error(e, "Exception while sending message to hub. Dropping message...");
                     }
                 }
                 catch (Exception e)
                 {
                     if (!(e is OperationCanceledException))
                     {
-                        Logger.Error(e, "Error while processing monitored item messages.");
+                        _logger.Error(e, "Error while processing monitored item messages.");
                     }
                 }
             }
@@ -296,11 +284,24 @@ namespace OpcPublisher
             int systemPropertyLength = 128 + sizeof(ulong) + tempMsg.ExpiryTimeUtc.ToString(CultureInfo.InvariantCulture).Length;
             int applicationPropertyLength = Encoding.UTF8.GetByteCount($"iothub-content-type={CONTENT_TYPE_OPCUAJSON}") + Encoding.UTF8.GetByteCount($"iothub-content-encoding={CONTENT_ENCODING_UTF8}");
             // if batching is requested the buffer will have the requested size, otherwise we reserve the max size
-            _hubMessageBufferSize = (_hubMessageSize > 0 ? _hubMessageSize : _hubMessageSizeMax) - (uint)systemPropertyLength - jsonSquareBracketLength - (uint)applicationPropertyLength;
+
+            var reservedBufferSize = (uint)systemPropertyLength + jsonSquareBracketLength + (uint)applicationPropertyLength;
+
+            if (_hubMessageSize > 0 && _hubMessageSize < reservedBufferSize)
+            {
+                throw new ArgumentException($"value cannot be smaller than {reservedBufferSize}", nameof(_hubMessageSize));
+            }
+
+            if (_hubMessageSize <= 0 && _hubMessageSizeMax < reservedBufferSize)
+            {
+                throw new ArgumentException($"value cannot be smaller than {reservedBufferSize}", nameof(_hubMessageSizeMax));
+            }
+
+            _hubMessageBufferSize = (_hubMessageSize > 0 ? _hubMessageSize : _hubMessageSizeMax) - reservedBufferSize;
+
             byte[] hubMessageBuffer = new byte[_hubMessageBufferSize];
             _hubMessage = new MemoryStream(hubMessageBuffer);
-            _nextSendTime = DateTime.UtcNow + TimeSpan.FromSeconds(DefaultSendIoTcIntervalSeconds);
-            _singleMessageSend = DefaultSendIoTcIntervalSeconds == 0 && _hubMessageSize == 0;
+            _singleMessageSend = _timeout == 0 && _hubMessageSize == 0;
 
             _jsonMessage = string.Empty;
             _needToBufferMessage = false;
@@ -342,7 +343,7 @@ namespace OpcPublisher
             }
             catch (Exception e)
             {
-                Logger.Error(e, "Generation of IoTCentral JSON message failed.");
+                _logger.Error(e, "Generation of IoTCentral JSON message failed.");
             }
             return string.Empty;
         }
