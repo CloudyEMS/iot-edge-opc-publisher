@@ -1093,7 +1093,10 @@ namespace OpcPublisher
                 {
                     foreach (var configFileEntry in configFileEntries)
                     {
-                        opcNodes.AddRange(configFileEntry.OpcNodes);
+                        if(configFileEntry.OpcNodes != null)
+                        {
+                             opcNodes.AddRange(configFileEntry.OpcNodes);
+                        } 
                     }
                     uint configuredNodesOnEndpointCount = (uint)opcNodes.Count();
 
