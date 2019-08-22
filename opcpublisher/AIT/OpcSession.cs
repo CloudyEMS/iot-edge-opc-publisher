@@ -1,20 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using opcpublisher.AIT;
-
-
-namespace OpcPublisher
+﻿namespace OpcPublisher
 {
     using Opc.Ua;
-    using System.Diagnostics;
+    using opcpublisher.AIT;
+    using OpcPublisher.Crypto;
+    using System;
+    using System.Linq;
     using System.Net;
     using System.Threading;
     using System.Threading.Tasks;
     using static OpcApplicationConfiguration;
-    using static OpcPublisher.OpcMonitoredItem;
     using static Program;
+
     public partial class OpcSession
     {
         /// <summary>
@@ -77,7 +73,17 @@ namespace OpcPublisher
                 if (!IsEventNodePublishedInSessionInternal(nodeIdCheck, expandedNodeIdCheck))
                 {
                     OpcMonitoredItem opcMonitoredItem = null;
-                    var encryptedCredentials = await Crypto.EncryptedNetworkCredential.FromPlainCredential(publishEventsMethodData.UserName, publishEventsMethodData.Password);
+                    EncryptedNetworkCredential encryptedCredentials = null;
+
+                    if (publishEventsMethodData.OpcAuthenticationMode == OpcAuthenticationMode.UsernamePassword)
+                    {
+                        if (string.IsNullOrWhiteSpace(publishEventsMethodData.UserName) && string.IsNullOrWhiteSpace(publishEventsMethodData.Password))
+                        {
+                            throw new ArgumentException($"If {nameof(publishEventsMethodData.OpcAuthenticationMode)} is set to '{OpcAuthenticationMode.UsernamePassword}', you have to specify '{nameof(publishEventsMethodData.UserName)}' and/or '{nameof(publishEventsMethodData.Password)}'.");
+                        }
+
+                        encryptedCredentials = await EncryptedNetworkCredential.FromPlainCredential(publishEventsMethodData.UserName, publishEventsMethodData.Password);
+                    }                 
 
                     // add a new item to monitor
                     if (expandedNodeId == null)
