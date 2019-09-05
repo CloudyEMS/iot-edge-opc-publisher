@@ -184,7 +184,7 @@ namespace OpcPublisher
         /// one is created.
         /// </summary>
         Task<HttpStatusCode> AddNodeForMonitoringAsync(NodeId nodeId, ExpandedNodeId expandedNodeId,
-            int? opcPublishingInterval, int? opcSamplingInterval, string displayName,
+            int? opcPublishingInterval, int? opcSamplingInterval, string key, string displayName,
             int? heartbeatInterval, bool? skipFirst, CancellationToken ct, IotCentralItemPublishMode? iotCentralItemPublishMode);
 
         /// <summary>

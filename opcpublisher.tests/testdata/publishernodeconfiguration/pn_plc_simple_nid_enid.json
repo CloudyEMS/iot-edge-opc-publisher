@@ -1,20 +1,23 @@
 [
     {
         "EndpointUrl": "opc.tcp://localhost:50000",
+        "Key": "MyKey1",
         "NodeId": {
             "Identifier": "i=2258"
         }
     },
     {
         "EndpointUrl": "opc.tcp://localhost:50000",
+        "Key": "MyKey2",
         "NodeId": {
             "Identifier": "ns=0;i=2261"
         }
     },
     {
-    "EndpointUrl": "opc.tcp://localhost:50000",
+        "EndpointUrl": "opc.tcp://localhost:50000",
         "OpcNodes": [
             {
+                "Key": "MyKey3",
                 "ExpandedNodeId": "nsu=http://microsoft.com/Opc/OpcPlc/;s=AlternatingBoolean"
             }
         ]

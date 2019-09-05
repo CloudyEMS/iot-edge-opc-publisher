@@ -12,6 +12,11 @@ namespace OpcPublisher
     public interface IOpcMonitoredItem
     {
         /// <summary>
+        /// A human readable key to uniquely identify the node. DisplayName is not Unique, NodeId might be not human readable in case of ints, GUIDs
+        /// </summary>
+        string Key { get; set; }
+
+        /// <summary>
         /// The display name to use in the telemetry event for the monitored item.
         /// </summary>
         string DisplayName { get; set; }

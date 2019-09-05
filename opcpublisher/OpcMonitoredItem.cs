@@ -49,15 +49,15 @@ namespace OpcPublisher
         public string DisplayName { get; set; }
 
         /// <summary>
+        /// The key under which to publish the node
+        /// </summary>
+        public string Key { get; set; }
+
+        /// <summary>
         /// Ctor of the object.
         /// </summary>
         public MessageDataBase()
         {
-            EndpointId = null;
-            EndpointUrl = null;
-            NodeId = null;
-            ApplicationUri = null;
-            DisplayName = null;
         }
 
         /// <summary>
@@ -170,18 +170,6 @@ namespace OpcPublisher
         /// </summary>
         public DataChangeMessageData()
         {
-            EndpointId = null;
-            EndpointUrl = null;
-            NodeId = null;
-            ExpandedNodeId = null;
-            ApplicationUri = null;
-            DisplayName = null;
-            Value = null;
-            PreserveValueQuotes = false;
-            SourceTimestamp = null;
-            StatusCode = null;
-            Status = null;
-            IotCentralItemPublishMode = null;
         }
 
         /// <summary>
@@ -298,6 +286,11 @@ namespace OpcPublisher
             NodeId = 0,
             ExpandedNodeId
         }
+
+        /// <summary>
+        /// A human readable key to uniquely identify the node. DisplayName is not Unique, NodeId might be not human readable in case of ints, GUIDs
+        /// </summary>
+        public string Key { get; set; }
 
         /// <summary>
         /// The display name to use in the telemetry event for the monitored item.
@@ -451,14 +444,14 @@ namespace OpcPublisher
         /// <summary>
         /// Ctor using NodeId (ns syntax for namespace).
         /// </summary>
-        public OpcMonitoredItem(NodeId nodeId, Guid sessionEndpointId, string sessionEndpointUrl, int? samplingInterval,
+        public OpcMonitoredItem(NodeId nodeId, Guid sessionEndpointId, string sessionEndpointUrl, int? samplingInterval, string key,
             string displayName, int? heartbeatInterval, bool? skipFirst, IotCentralItemPublishMode? iotCentralItemPublishMode)
         {
             ConfigNodeId = nodeId;
             ConfigExpandedNodeId = null;
             OriginalId = nodeId.ToString();
             ConfigType = OpcMonitoredItemConfigurationType.NodeId;
-            Init(sessionEndpointId, sessionEndpointUrl, samplingInterval, displayName, heartbeatInterval, skipFirst);
+            Init(sessionEndpointId, sessionEndpointUrl, samplingInterval, key, displayName, heartbeatInterval, skipFirst);
             State = OpcMonitoredItemState.Unmonitored;
             IotCentralItemPublishMode = iotCentralItemPublishMode;
         }
@@ -466,14 +459,14 @@ namespace OpcPublisher
         /// <summary>
         /// Ctor using ExpandedNodeId ("nsu=") syntax.
         /// </summary>
-        public OpcMonitoredItem(ExpandedNodeId expandedNodeId, Guid sessionEndpointId, string sessionEndpointUrl, int? samplingInterval,
+        public OpcMonitoredItem(ExpandedNodeId expandedNodeId, Guid sessionEndpointId, string sessionEndpointUrl, int? samplingInterval, string key,
             string displayName, int? heartbeatInterval, bool? skipFirst, IotCentralItemPublishMode? iotCentralItemPublishMode)
         {
             ConfigNodeId = null;
             ConfigExpandedNodeId = expandedNodeId;
             OriginalId = expandedNodeId.ToString();
             ConfigType = OpcMonitoredItemConfigurationType.ExpandedNodeId;
-            Init(sessionEndpointId, sessionEndpointUrl, samplingInterval, displayName, heartbeatInterval, skipFirst);
+            Init(sessionEndpointId, sessionEndpointUrl, samplingInterval, key, displayName, heartbeatInterval, skipFirst);
             State = OpcMonitoredItemState.UnmonitoredNamespaceUpdateRequested;
             IotCentralItemPublishMode = iotCentralItemPublishMode;
         }
@@ -603,28 +596,23 @@ namespace OpcPublisher
 
                 DataChangeMessageData dataChangeMessageData = new DataChangeMessageData();
                 dataChangeMessageData.EndpointId = EndpointId.ToString();
+                dataChangeMessageData.Key = Key;
+
                 if (IotCentralMode)
                 {
-                    // for IoTCentral we use the DisplayName as the key in the telemetry and the Value as the value.
-                    if (monitoredItem.DisplayName != null)
-                    {
-                        // use the DisplayName as reported in the MonitoredItem
-                        dataChangeMessageData.DisplayName = monitoredItem.DisplayName;
-                    }
-                    if (IotCentralItemPublishMode != null)
-                    {
-                        dataChangeMessageData.IotCentralItemPublishMode = IotCentralItemPublishMode;
-                    }
+                    dataChangeMessageData.DisplayName = monitoredItem.DisplayName;
+                    dataChangeMessageData.IotCentralItemPublishMode = IotCentralItemPublishMode;
+
                     if (value.Value != null)
                     {
                         string encodedValue = string.Empty;
                         EncodeValue(value, monitoredItem.Subscription.Session.MessageContext, out encodedValue, out bool preserveValueQuotes);
                         dataChangeMessageData.Value = encodedValue;
                         dataChangeMessageData.PreserveValueQuotes = preserveValueQuotes;
-
-                        Logger.Debug($"   IoTCentral key: {dataChangeMessageData.DisplayName}");
-                        Logger.Debug($"   IoTCentral values: {dataChangeMessageData.Value}");
                     }
+
+                    Logger.Debug($"   IoTCentral key: {dataChangeMessageData.Key}");
+                    Logger.Debug($"   IoTCentral values: {dataChangeMessageData.Value}");
                 }
                 else
                 {
@@ -914,7 +902,7 @@ namespace OpcPublisher
         /// <summary>
         /// Init instance variables.
         /// </summary>
-        private void Init(Guid sessionEndpointId, string sessionEndpointUrl, int? samplingInterval, string displayName, int? heartbeatInterval, bool? skipFirst)
+        private void Init(Guid sessionEndpointId, string sessionEndpointUrl, int? samplingInterval, string key, string displayName, int? heartbeatInterval, bool? skipFirst)
         {
             State = OpcMonitoredItemState.Unmonitored;
             AttributeId = Attributes.Value;
@@ -924,6 +912,7 @@ namespace OpcPublisher
             NotificationEventHandler = new MonitoredItemNotificationEventHandler(MonitoredItemDataChangeNotificationEventHandler);
             EndpointId = sessionEndpointId;
             EndpointUrl = sessionEndpointUrl;
+            Key = key;
             DisplayName = displayName;
             DisplayNameFromConfiguration = string.IsNullOrEmpty(displayName) ? false : true;
             RequestedSamplingInterval = samplingInterval ?? OpcSamplingInterval;

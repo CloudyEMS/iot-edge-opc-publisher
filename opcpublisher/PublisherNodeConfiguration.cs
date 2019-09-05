@@ -444,7 +444,7 @@ namespace OpcPublisher
                                         _nodePublishingConfiguration.Add(new NodePublishingConfigurationModel(expandedNodeId, opcNode.ExpandedNodeId,
                                             publisherConfigFileEntryLegacy.EndpointId, publisherConfigFileEntryLegacy.EndpointName, publisherConfigFileEntryLegacy.EndpointUrl.OriginalString, 
                                             publisherConfigFileEntryLegacy.UseSecurity,
-                                            opcNode.OpcPublishingInterval, opcNode.OpcSamplingInterval, opcNode.DisplayName,
+                                            opcNode.OpcPublishingInterval, opcNode.OpcSamplingInterval, opcNode.Key, opcNode.DisplayName,
                                             opcNode.HeartbeatInterval, opcNode.SkipFirst, publisherConfigFileEntryLegacy.OpcAuthenticationMode,
                                             publisherConfigFileEntryLegacy.EncryptedAuthCredential, opcNode.IotCentralItemPublishMode));
                                     }
@@ -458,7 +458,7 @@ namespace OpcPublisher
                                             _nodePublishingConfiguration.Add(new NodePublishingConfigurationModel(expandedNodeId, opcNode.Id,
                                                 publisherConfigFileEntryLegacy.EndpointId, publisherConfigFileEntryLegacy.EndpointName, publisherConfigFileEntryLegacy.EndpointUrl.OriginalString, 
                                                 publisherConfigFileEntryLegacy.UseSecurity,
-                                                opcNode.OpcPublishingInterval, opcNode.OpcSamplingInterval, opcNode.DisplayName,
+                                                opcNode.OpcPublishingInterval, opcNode.OpcSamplingInterval, opcNode.Key, opcNode.DisplayName,
                                                 opcNode.HeartbeatInterval, opcNode.SkipFirst, publisherConfigFileEntryLegacy.OpcAuthenticationMode,
                                                 publisherConfigFileEntryLegacy.EncryptedAuthCredential, opcNode.IotCentralItemPublishMode));
                                         }
@@ -469,7 +469,7 @@ namespace OpcPublisher
                                             _nodePublishingConfiguration.Add(new NodePublishingConfigurationModel(nodeId, opcNode.Id,
                                                 publisherConfigFileEntryLegacy.EndpointId, publisherConfigFileEntryLegacy.EndpointName, publisherConfigFileEntryLegacy.EndpointUrl.OriginalString,
                                                 publisherConfigFileEntryLegacy.UseSecurity,
-                                                opcNode.OpcPublishingInterval, opcNode.OpcSamplingInterval, opcNode.DisplayName,
+                                                opcNode.OpcPublishingInterval, opcNode.OpcSamplingInterval, opcNode.Key, opcNode.DisplayName,
                                                 opcNode.HeartbeatInterval, opcNode.SkipFirst, publisherConfigFileEntryLegacy.OpcAuthenticationMode,
                                                 publisherConfigFileEntryLegacy.EncryptedAuthCredential, opcNode.IotCentralItemPublishMode));
                                         }
@@ -496,6 +496,7 @@ namespace OpcPublisher
                             }
                             else
                             {
+                                // TODO SER Check if the legacy support can be removed
                                 // NodeId (ns=) format node configuration syntax using default sampling and publishing interval.
                                 _nodePublishingConfiguration.Add(new NodePublishingConfigurationModel(
                                     publisherConfigFileEntryLegacy.NodeId,
@@ -504,7 +505,7 @@ namespace OpcPublisher
                                     publisherConfigFileEntryLegacy.EndpointName,
                                     publisherConfigFileEntryLegacy.EndpointUrl.OriginalString,
                                     publisherConfigFileEntryLegacy.UseSecurity,
-                                    null, null, null,
+                                    null, null, publisherConfigFileEntryLegacy.NodeId.ToString(), null,
                                     null, null, publisherConfigFileEntryLegacy.OpcAuthenticationMode, publisherConfigFileEntryLegacy.EncryptedAuthCredential, null));
                             }
                         }
@@ -692,7 +693,7 @@ namespace OpcPublisher
                                 OpcMonitoredItem opcMonitoredItem = new OpcMonitoredItem(nodeInfo.ExpandedNodeId,
                                     opcSession.EndpointId,
                                     opcSession.EndpointUrl,
-                                    nodeInfo.OpcSamplingInterval, nodeInfo.DisplayName, nodeInfo.HeartbeatInterval,
+                                    nodeInfo.OpcSamplingInterval, nodeInfo.Key, nodeInfo.DisplayName, nodeInfo.HeartbeatInterval,
                                     nodeInfo.SkipFirst, nodeInfo.IotCentralItemPublishMode);
                                 opcSubscription.OpcMonitoredItems.Add(opcMonitoredItem);
                                 Interlocked.Increment(ref NodeConfigVersion);
@@ -703,7 +704,7 @@ namespace OpcPublisher
                                 OpcMonitoredItem opcMonitoredItem = new OpcMonitoredItem(nodeInfo.NodeId,
                                     opcSession.EndpointId,
                                     opcSession.EndpointUrl,
-                                    nodeInfo.OpcSamplingInterval, nodeInfo.DisplayName, nodeInfo.HeartbeatInterval,
+                                    nodeInfo.OpcSamplingInterval, nodeInfo.Key, nodeInfo.DisplayName, nodeInfo.HeartbeatInterval,
                                     nodeInfo.SkipFirst, nodeInfo.IotCentralItemPublishMode);
                                 opcSubscription.OpcMonitoredItems.Add(opcMonitoredItem);
                                 Interlocked.Increment(ref NodeConfigVersion);
@@ -908,13 +909,13 @@ namespace OpcPublisher
                                             OpcNodeOnEndpointModel opcNodeOnEndpoint = new OpcNodeOnEndpointModel(monitoredItem.OriginalId) {
                                                 OpcPublishingInterval = subscription.RequestedPublishingIntervalFromConfiguration ? subscription.RequestedPublishingInterval : (int?)null,
                                                 OpcSamplingInterval = monitoredItem.RequestedSamplingIntervalFromConfiguration ? monitoredItem.RequestedSamplingInterval : (int?)null,
+                                                Key = monitoredItem.Key,
                                                 DisplayName = monitoredItem.DisplayNameFromConfiguration ? monitoredItem.DisplayName : null,
                                                 HeartbeatInterval = monitoredItem.HeartbeatIntervalFromConfiguration ? (int?)monitoredItem.HeartbeatInterval : null,
                                                 SkipFirst = monitoredItem.SkipFirstFromConfiguration ? (bool?)monitoredItem.SkipFirst : null,
                                                 IotCentralItemPublishMode = monitoredItem.IotCentralItemPublishMode
                                             };
-                                            //IoT Central currently not supporting whitespaces in FieldName, so we encode all display names with url encode
-                                            opcNodeOnEndpoint.DisplayName = HttpUtility.UrlEncode(HttpUtility.UrlDecode(opcNodeOnEndpoint.DisplayName));
+
                                             publisherConfigurationFileEntry.OpcNodes.Add(opcNodeOnEndpoint);
                                         }
                                     }

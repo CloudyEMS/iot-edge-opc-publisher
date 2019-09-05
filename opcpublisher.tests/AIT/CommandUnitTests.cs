@@ -141,10 +141,6 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
                 }
            };
 
-        /// <summary>
-        /// Telemetry configuration object.
-        /// </summary>
-        public static IPublisherTelemetryConfiguration TelemetryConfiguration { get; set; }
 
         /// <summary>
         /// Diagnostics object.

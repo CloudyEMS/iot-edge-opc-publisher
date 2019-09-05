@@ -3,7 +3,8 @@
         "EndpointUrl": "opc.tcp://localhost:50000",
         "OpcNodes": [
             {
-                "ExpandedNodeId": "nsu=http://opcfoundation.org/UA/;i=2258"
+                "ExpandedNodeId": "nsu=http://opcfoundation.org/UA/;i=2258",
+                "Key": "MyKey3"
             }
         ]
     }

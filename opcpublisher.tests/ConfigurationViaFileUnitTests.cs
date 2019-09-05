@@ -7,6 +7,7 @@ namespace OpcPublisher
     using Newtonsoft.Json;
     using System;
     using System.IO;
+    using System.Linq;
     using System.Threading.Tasks;
     using Xunit.Abstractions;
     using static OpcApplicationConfiguration;
@@ -82,6 +83,16 @@ namespace OpcPublisher
                 _output.WriteLine($"sessions configured {NodeConfiguration.NumberOfOpcSessionsConfigured}, connected {NodeConfiguration.NumberOfOpcSessionsConnected}");
                 _output.WriteLine($"subscriptions configured {NodeConfiguration.NumberOfOpcSubscriptionsConfigured}, connected {NodeConfiguration.NumberOfOpcSubscriptionsConnected}");
                 _output.WriteLine($"items configured {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsConfigured}, monitored {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsMonitored}, toRemove {NodeConfiguration.NumberOfOpcDataChangeMonitoredItemsToRemove}");
+
+                // Assert that all monitored items have a key
+                var monitoredItems = NodeConfiguration.OpcSessions
+                    .SelectMany(session => session.OpcSubscriptions)
+                    .SelectMany(subscription => subscription.OpcMonitoredItems);
+
+                Assert.All(monitoredItems, (monitoredItem) =>
+                {
+                    Assert.False(string.IsNullOrWhiteSpace(monitoredItem.Key));
+                });
             }
             finally
             {

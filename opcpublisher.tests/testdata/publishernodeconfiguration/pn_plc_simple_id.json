@@ -3,13 +3,16 @@
         "EndpointUrl": "opc.tcp://localhost:50000",
         "OpcNodes": [
             {
-                "Id": "i=2258"
+                "Id": "i=2258",
+                "Key": "MyKey1"
             },
             {
-                "Id": "ns=2;s=DipData"
+                "Id": "ns=2;s=DipData",
+                "Key": "MyKey2"
             },
             {
-                "Id": "nsu=http://microsoft.com/Opc/OpcPlc/;s=NegativeTrendData"
+                "Id": "nsu=http://microsoft.com/Opc/OpcPlc/;s=NegativeTrendData",
+                "Key": "MyKey3"
             }
         ]
     }

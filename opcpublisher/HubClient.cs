@@ -236,7 +236,7 @@ namespace OpcPublisher
             }
             else
             {
-                reportedPropertiesEdge[message.DataChangeMessageData.DisplayName] = message.DataChangeMessageData.Value;
+                reportedPropertiesEdge[message.DataChangeMessageData.Key] = message.DataChangeMessageData.Value;
             }
             
             var eventMessage = new Message(Encoding.UTF8.GetBytes(reportedPropertiesEdge.ToJson()));

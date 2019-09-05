@@ -1,12 +1,14 @@
 [
     {
         "EndpointUrl": "opc.tcp://localhost:50000",
+        "Key": "MyKey1",
         "NodeId": {
             "Identifier": "i=2258"
         }
     },
     {
         "EndpointUrl": "opc.tcp://localhost:50000",
+        "Key": "MyKey2",
         "NodeId": {
             "Identifier": "ns=0;i=2261"
         }
@@ -14,23 +16,26 @@
     {
         "EndpointUrl": "opc.tcp://localhost:50000",
         "OpcNodes": [
-
             {
-                "ExpandedNodeId": "nsu=http://microsoft.com/Opc/OpcPlc/;s=AlternatingBoolean"
+                "ExpandedNodeId": "nsu=http://microsoft.com/Opc/OpcPlc/;s=AlternatingBoolean",
+                "Key": "MyKey3"
             }
         ]
     },
     {
-        "EndpointUrl": "opc.tcp://localhost:50000",
+      "EndpointUrl": "opc.tcp://localhost:50000",
         "OpcNodes": [
             {
-                "Id": "i=2262"
+                "Id": "i=2262",
+                "Key": "MyKey4"
             },
             {
-                "Id": "ns=2;s=DipData"
+                "Id": "ns=2;s=DipData",
+                "Key": "MyKey5"
             },
             {
-                "Id": "nsu=http://microsoft.com/Opc/OpcPlc/;s=NegativeTrendData"
+                "Id": "nsu=http://microsoft.com/Opc/OpcPlc/;s=NegativeTrendData",
+                "Key": "MyKey6"
             }
         ]
     }

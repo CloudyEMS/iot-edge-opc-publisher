@@ -3,7 +3,6 @@ using Opc.Ua;
 using System;
 using System.Collections.Generic;
 using Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.AIT;
-using Newtonsoft.Json.Converters;
 using opcpublisher.AIT;
 
 namespace OpcPublisher
@@ -11,9 +10,6 @@ namespace OpcPublisher
     using Newtonsoft.Json.Converters;
     using OpcPublisher.Crypto;
     using System.ComponentModel;
-    using System.Globalization;
-    using System.Net;
-
 
     /// <summary>
     /// Class describing a list of nodes
@@ -21,14 +17,14 @@ namespace OpcPublisher
     public class OpcNodeOnEndpointModel
     {
         public OpcNodeOnEndpointModel(string id, string expandedNodeId = null, int? opcSamplingInterval = null, int? opcPublishingInterval = null,
-            string displayName = null, int? heartbeatInterval = null, bool? skipFirst = null, IotCentralItemPublishMode? iotCentralItemPublishMode = null, 
+            string key = null, int? heartbeatInterval = null, bool? skipFirst = null, IotCentralItemPublishMode? iotCentralItemPublishMode = null, 
             OpcPublisherPublishState opcPublisherPublishState = OpcPublisherPublishState.None)
         {
             Id = id;
             ExpandedNodeId = expandedNodeId;
             OpcSamplingInterval = opcSamplingInterval;
             OpcPublishingInterval = opcPublishingInterval;
-            DisplayName = displayName;
+            Key = key;
             HeartbeatInterval = heartbeatInterval;
             SkipFirst = skipFirst;
             IotCentralItemPublishMode = iotCentralItemPublishMode;
@@ -49,6 +45,9 @@ namespace OpcPublisher
 
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public int? OpcPublishingInterval { get; set; }
+
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string Key { get; set; }
 
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string DisplayName { get; set; }
@@ -199,6 +198,11 @@ namespace OpcPublisher
         public string Id { get; set; }
 
         /// <summary>
+        /// A human readable key to uniquely identify the node. DisplayName is not Unique, NodeId might be not human readable in case of ints, GUIDs
+        /// </summary>
+        public string Key { get; set; }
+
+        /// <summary>
         /// The display name to use for the node in telemetry events.
         /// </summary>
         public string DisplayName { get; set; }
@@ -241,7 +245,7 @@ namespace OpcPublisher
         /// Ctor of the object.
         /// </summary>
         public NodePublishingConfigurationModel(string id, Guid endpointId, string endpointName, string endpointUrl, bool? useSecurity,
-                    int? opcPublishingInterval, int? opcSamplingInterval, string displayName, int? heartbeatInterval, bool? skipFirst,
+                    int? opcPublishingInterval, int? opcSamplingInterval, string key, string displayName, int? heartbeatInterval, bool? skipFirst,
                     OpcAuthenticationMode opcAuthenticationMode, EncryptedNetworkCredential encryptedAuthCredential, IotCentralItemPublishMode? iotCentralItemPublishMode)
         {
             NodeId = null;
@@ -251,6 +255,7 @@ namespace OpcPublisher
             EndpointName = endpointName;
             EndpointUrl = endpointUrl;
             UseSecurity = useSecurity ?? true;
+            Key = key;
             DisplayName = displayName;
             OpcSamplingInterval = opcSamplingInterval;
             OpcPublishingInterval = opcPublishingInterval;
@@ -265,9 +270,9 @@ namespace OpcPublisher
         /// Ctor of the object.
         /// </summary>
         public NodePublishingConfigurationModel(ExpandedNodeId expandedNodeId, string id, Guid endpointId, string endpointName, string endpointUrl, bool? useSecurity,
-                    int? opcPublishingInterval, int? opcSamplingInterval, string displayName, int? heartbeatInterval, bool? skipFirst,
+                    int? opcPublishingInterval, int? opcSamplingInterval, string key, string displayName, int? heartbeatInterval, bool? skipFirst,
                     OpcAuthenticationMode opcAuthenticationMode, EncryptedNetworkCredential encryptedAuthCredential, IotCentralItemPublishMode? iotCentralItemPublishMode)
-            : this(id, endpointId, endpointName, endpointUrl, useSecurity, opcPublishingInterval, opcSamplingInterval, displayName, heartbeatInterval, skipFirst, opcAuthenticationMode,  encryptedAuthCredential, iotCentralItemPublishMode)
+            : this(id, endpointId, endpointName, endpointUrl, useSecurity, opcPublishingInterval, opcSamplingInterval, key, displayName, heartbeatInterval, skipFirst, opcAuthenticationMode,  encryptedAuthCredential, iotCentralItemPublishMode)
         {
             ExpandedNodeId = expandedNodeId;
         }
@@ -276,9 +281,9 @@ namespace OpcPublisher
         /// Ctor of the object.
         /// </summary>
         public NodePublishingConfigurationModel(NodeId nodeId, string originalId, Guid endpointId, string endpointName, string endpointUrl, bool? useSecurity,
-                    int? opcPublishingInterval, int? opcSamplingInterval, string displayName, int? heartbeatInterval, bool? skipFirst,
+                    int? opcPublishingInterval, int? opcSamplingInterval, string key, string displayName, int? heartbeatInterval, bool? skipFirst,
                     OpcAuthenticationMode opcAuthenticationMode, EncryptedNetworkCredential encryptedAuthCredential, IotCentralItemPublishMode? iotCentralItemPublishMode)
-            : this(originalId, endpointId, endpointName, endpointUrl, useSecurity, opcPublishingInterval, opcSamplingInterval, displayName, heartbeatInterval, skipFirst, opcAuthenticationMode,  encryptedAuthCredential, iotCentralItemPublishMode)
+            : this(originalId, endpointId, endpointName, endpointUrl, useSecurity, opcPublishingInterval, opcSamplingInterval, key, displayName, heartbeatInterval, skipFirst, opcAuthenticationMode,  encryptedAuthCredential, iotCentralItemPublishMode)
         {
             NodeId = nodeId;
         }

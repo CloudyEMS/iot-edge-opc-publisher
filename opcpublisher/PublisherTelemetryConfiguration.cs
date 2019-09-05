@@ -161,6 +161,14 @@ namespace OpcPublisher
         }
 
         /// <summary>
+        /// The Key telemetry configuration.
+        /// </summary>
+        public ITelemetrySettings Key
+        {
+            get => new TelemetrySettings() { Name = "Key" };
+        }
+
+        /// <summary>
         /// Ctor of the object.
         /// </summary>
         public MonitoredItemTelemetryConfiguration()

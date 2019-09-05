@@ -439,7 +439,7 @@ namespace OpcPublisher
                                     // add the node info to the subscription with the default publishing interval, execute syncronously
                                     Logger.Debug($"{logPrefix} Request to monitor item with NodeId '{node.Id}' (PublishingInterval: {node.OpcPublishingInterval.ToString() ?? "--"}, SamplingInterval: {node.OpcSamplingInterval.ToString() ?? "--"})");
                                     nodeStatusCode = await opcSession.AddNodeForMonitoringAsync(nodeId, null,
-                                        node.OpcPublishingInterval, node.OpcSamplingInterval, node.DisplayName,
+                                        node.OpcPublishingInterval, node.OpcSamplingInterval, node.Key, node.DisplayName,
                                         node.HeartbeatInterval, node.SkipFirst,
                                         ShutdownTokenSource.Token, node.IotCentralItemPublishMode).ConfigureAwait(false);
                                 }
@@ -448,7 +448,7 @@ namespace OpcPublisher
                                     // add the node info to the subscription with the default publishing interval, execute syncronously
                                     Logger.Debug($"{logPrefix} Request to monitor item with ExpandedNodeId '{node.Id}' (PublishingInterval: {node.OpcPublishingInterval.ToString() ?? "--"}, SamplingInterval: {node.OpcSamplingInterval.ToString() ?? "--"})");
                                     nodeStatusCode = await opcSession.AddNodeForMonitoringAsync(null, expandedNodeId,
-                                        node.OpcPublishingInterval, node.OpcSamplingInterval, node.DisplayName,
+                                        node.OpcPublishingInterval, node.OpcSamplingInterval, node.Key, node.DisplayName,
                                         node.HeartbeatInterval, node.SkipFirst,
                                         ShutdownTokenSource.Token, node.IotCentralItemPublishMode).ConfigureAwait(false);
                                 }
@@ -1158,6 +1158,7 @@ namespace OpcPublisher
                 {
                     OpcPublishingInterval = n.OpcPublishingInterval,
                     OpcSamplingInterval = n.OpcSamplingInterval,
+                    Key = n.Key,
                     DisplayName = n.DisplayName,
                     IotCentralItemPublishMode = n.IotCentralItemPublishMode,
                     OpcPublisherPublishState = n.OpcPublisherPublishState
@@ -1583,6 +1584,13 @@ namespace OpcPublisher
                             await _jsonWriter.WriteValueAsync(messageData.DisplayName).ConfigureAwait(false);
                         }
 
+                        // process Key
+                        if (!string.IsNullOrEmpty(messageData.Key))
+                        {
+                            await _jsonWriter.WritePropertyNameAsync(telemetryConfiguration.MonitoredItem.Key.Name).ConfigureAwait(false);
+                            await _jsonWriter.WriteValueAsync(messageData.Key).ConfigureAwait(false);
+                        }
+
                         if (!(bool)telemetryConfiguration.MonitoredItem.Flat)
                         {
                             await _jsonWriter.WriteEndObjectAsync().ConfigureAwait(false);
@@ -1776,7 +1784,7 @@ namespace OpcPublisher
                 using (JsonWriter _jsonWriter = new JsonTextWriter(_jsonStringWriter))
                 {
                     await _jsonWriter.WriteStartObjectAsync().ConfigureAwait(false);
-                    await _jsonWriter.WritePropertyNameAsync(messageData.DisplayName).ConfigureAwait(false);
+                    await _jsonWriter.WritePropertyNameAsync(messageData.Key).ConfigureAwait(false);
                     await _jsonWriter.WriteValueAsync(messageData.Value).ConfigureAwait(false);
                     await _jsonWriter.WritePropertyNameAsync("messageType").ConfigureAwait(false);
                     await _jsonWriter.WriteValueAsync("measurement").ConfigureAwait(false);

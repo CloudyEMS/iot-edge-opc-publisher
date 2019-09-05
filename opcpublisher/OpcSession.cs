@@ -1380,7 +1380,7 @@ namespace OpcPublisher
         /// one is created.
         /// </summary>
         public async Task<HttpStatusCode> AddNodeForMonitoringAsync(NodeId nodeId, ExpandedNodeId expandedNodeId,
-            int? opcPublishingInterval, int? opcSamplingInterval, string displayName,
+            int? opcPublishingInterval, int? opcSamplingInterval, string key, string displayName,
             int? heartbeatInterval, bool? skipFirst, CancellationToken ct, IotCentralItemPublishMode? iotCentralItemPublishMode)
         {
             string logPrefix = "AddNodeForMonitoringAsync:";
@@ -1438,11 +1438,11 @@ namespace OpcPublisher
                     // add a new item to monitor
                     if (expandedNodeId == null)
                     {
-                        opcMonitoredItem = new OpcMonitoredItem(nodeId, EndpointId, EndpointUrl, opcSamplingInterval, displayName, heartbeatInterval, skipFirst, iotCentralItemPublishMode);
+                        opcMonitoredItem = new OpcMonitoredItem(nodeId, EndpointId, EndpointUrl, opcSamplingInterval, key, displayName, heartbeatInterval, skipFirst, iotCentralItemPublishMode);
                     }
                     else
                     {
-                        opcMonitoredItem = new OpcMonitoredItem(expandedNodeId, EndpointId, EndpointUrl, opcSamplingInterval, displayName, heartbeatInterval, skipFirst, iotCentralItemPublishMode);
+                        opcMonitoredItem = new OpcMonitoredItem(expandedNodeId, EndpointId, EndpointUrl, opcSamplingInterval, key, displayName, heartbeatInterval, skipFirst, iotCentralItemPublishMode);
                     }
                     opcSubscription.OpcMonitoredItems.Add(opcMonitoredItem);
                     Interlocked.Increment(ref NodeConfigVersion);
