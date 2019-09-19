@@ -265,8 +265,6 @@ namespace OpcPublisher
                     {
                         reportedPropertiesEdge[eventValue.Name] = new JObject();
                         reportedPropertiesEdge[eventValue.Name]["value"] = eventValue.Value;
-                        reportedPropertiesEdge[eventValue.Name]["status"] = "completed";
-                        reportedPropertiesEdge[eventValue.Name]["message"] = "Processed";
                     }
                 }
             }
@@ -274,8 +272,6 @@ namespace OpcPublisher
             {
                 reportedPropertiesEdge[message.DataChangeMessageData.DisplayName] = new JObject();
                 reportedPropertiesEdge[message.DataChangeMessageData.DisplayName]["value"] = message.DataChangeMessageData.Value;
-                reportedPropertiesEdge[message.DataChangeMessageData.DisplayName]["status"] = "completed";
-                reportedPropertiesEdge[message.DataChangeMessageData.DisplayName]["message"] = "Processed";
             }
             
             var eventMessage = new Message(Encoding.UTF8.GetBytes(reportedPropertiesEdge.ToJson()));
@@ -304,17 +300,17 @@ namespace OpcPublisher
 
         private async Task HandleSettingChanged(TwinCollection desiredProperties, object userContext)
         {
-            try
+            var reportedProperties = new TwinCollection();
+            var opcSessions = Program.NodeConfiguration.OpcSessions;
+            foreach (var opcSession in opcSessions)
             {
-                var reportedProperties = new TwinCollection();
-                var opcSessions = Program.NodeConfiguration.OpcSessions;
-                foreach (var opcSession in opcSessions)
+                foreach (var opcSubscription in opcSession.OpcSubscriptions)
                 {
-                    foreach (var opcSubscription in opcSession.OpcSubscriptions)
+                    foreach (var opcMonitoredItem in opcSubscription.OpcMonitoredItems)
                     {
-                        foreach (var opcMonitoredItem in opcSubscription.OpcMonitoredItems)
+                        var key = opcMonitoredItem.DisplayName;
+                        try
                         {
-                            var key = opcMonitoredItem.DisplayName;
                             if (!desiredProperties.Contains(key))
                             {
                                 continue;
@@ -336,29 +332,29 @@ namespace OpcPublisher
                             if (typeId.IdType == IdType.Numeric)
                             {
                                 valuesToWrite.Add(
-                                   new WriteValue {
-                                       NodeId = opcMonitoredItem.ConfigNodeId,
-                                       AttributeId = opcMonitoredItem.AttributeId,
-                                       Value = new DataValue {
-                                           Value = Convert.ToInt32(jsonValue),
-                                           ServerTimestamp = DateTime.MinValue,
-                                           SourceTimestamp = DateTime.MinValue
-                                       }
-                                   }
+                                    new WriteValue {
+                                        NodeId = opcMonitoredItem.ConfigNodeId,
+                                        AttributeId = opcMonitoredItem.AttributeId,
+                                        Value = new DataValue {
+                                            Value = Convert.ToInt32(jsonValue),
+                                            ServerTimestamp = DateTime.MinValue,
+                                            SourceTimestamp = DateTime.MinValue
+                                        }
+                                    }
                                 );
                             }
                             else
                             {
                                 valuesToWrite.Add(
-                                   new WriteValue {
-                                       NodeId = opcMonitoredItem.ConfigNodeId,
-                                       AttributeId = opcMonitoredItem.AttributeId,
-                                       Value = new DataValue {
-                                           Value = jsonValue,
-                                           ServerTimestamp = DateTime.MinValue,
-                                           SourceTimestamp = DateTime.MinValue
-                                       }
-                                   }
+                                    new WriteValue {
+                                        NodeId = opcMonitoredItem.ConfigNodeId,
+                                        AttributeId = opcMonitoredItem.AttributeId,
+                                        Value = new DataValue {
+                                            Value = jsonValue,
+                                            ServerTimestamp = DateTime.MinValue,
+                                            SourceTimestamp = DateTime.MinValue
+                                        }
+                                    }
                                 );
                             }
 
@@ -374,7 +370,7 @@ namespace OpcPublisher
                             if (StatusCode.IsBad(results[0]))
                             {
                                 _logger.Error($"[{results[0].ToString()}]: Cannot write Setting value of Monitored Item with NodeId {opcMonitoredItem.Id} and DisplayName {opcMonitoredItem.DisplayName}");
-                                status = "error";
+                                status = "failed";
                                 message = $"Failure during synchronizing OPC UA Values, Reason: {results[0].ToString()}";
                             }
                             else
@@ -385,23 +381,37 @@ namespace OpcPublisher
 
                             if (desiredProperties.Contains("$version"))
                             {
-                                reportedProperties[key] = new {
+                                reportedProperties[key] = new 
+                                {
                                     value = desiredProperties[key]["value"],
                                     status,
                                     desiredVersion = desiredProperties["$version"],
                                     message
                                 };
-                             
+                                
+                                await UpdateReportedPropertiesAsync(reportedProperties);
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            _logger.Error(e, "Error while updating reported Setting.");
+                            var status = "failed";
+                            var message = $"Failure during synchronizing OPC UA Values, Reason: {e.Message}";
+                            if (desiredProperties.Contains("$version"))
+                            {
+                                reportedProperties[key] = new 
+                                {
+                                    value = desiredProperties[key]["value"],
+                                    status,
+                                    desiredVersion = desiredProperties["$version"],
+                                    message
+                                };
+                                
                                 await UpdateReportedPropertiesAsync(reportedProperties);
                             }
                         }
                     }
                 }
-            }
-
-            catch (Exception e)
-            {
-                _logger.Error(e, "Error while updating reported Setting.");
             }
         }
 
