@@ -15,6 +15,7 @@ namespace OpcPublisher
     using System;
     using System.Globalization;
     using System.Net;
+    using System.Reflection;
     using System.Text;
     using System.Web;
 
@@ -319,44 +320,91 @@ namespace OpcPublisher
                             //Handle OPC UA Property overwrite and acknowledge setting change
                             //Get JSON Value of desired property which is reported by setting change from IoT Central
                             var jsonValue = new Newtonsoft.Json.Linq.JObject(desiredProperties[key])
-                                .GetValue("value").ToString();
-
-                            //Create a new WriteValueCollection to write the new information to OPC UA Server
-                            var valuesToWrite = new WriteValueCollection();
+                                .GetValue("value").ToString();                         
                             
                             var session = opcSession.OpcUaClientSession.GetSession();
 
-                            var references = session.FetchReferences(opcMonitoredItem.ConfigNodeId);
-                            var typeId = references.FirstOrDefault()?.TypeId ?? DataTypeIds.String;
+                            var nodesToRead = new ReadValueIdCollection { new ReadValueId() { NodeId = opcMonitoredItem.ConfigNodeId, AttributeId = Attributes.DataType } };
+                            session.Read(
+                                null, 
+                                0, 
+                                TimestampsToReturn.Neither, 
+                                nodesToRead, 
+                                out DataValueCollection attributeResults, 
+                                out DiagnosticInfoCollection attributeDiagnostics);
 
-                            if (typeId.IdType == IdType.Numeric)
+                            ClientBase.ValidateResponse(attributeResults, nodesToRead);
+                            ClientBase.ValidateDiagnosticInfos(attributeDiagnostics, nodesToRead);
+
+                            var dataType = (uint)((NodeId)attributeResults.First().Value).Identifier;
+                            
+                            object value = null;
+
+                            try
                             {
-                                valuesToWrite.Add(
-                                    new WriteValue {
-                                        NodeId = opcMonitoredItem.ConfigNodeId,
-                                        AttributeId = opcMonitoredItem.AttributeId,
-                                        Value = new DataValue {
-                                            Value = Convert.ToInt32(jsonValue),
-                                            ServerTimestamp = DateTime.MinValue,
-                                            SourceTimestamp = DateTime.MinValue
-                                        }
-                                    }
-                                );
+                                switch (dataType)
+                                {
+                                    case DataTypes.Boolean: value = Convert.ToBoolean(jsonValue); break;
+                                    case DataTypes.Byte: value = Convert.ToByte(jsonValue); break;
+                                    case DataTypes.DateTime: value = Convert.ToDateTime(jsonValue); break;
+                                    case DataTypes.Double: value = Convert.ToDouble(jsonValue); break;
+                                    case DataTypes.Float: value = float.Parse(jsonValue); break;
+                                    case DataTypes.Guid: value = new Guid(jsonValue); break;
+                                    case DataTypes.Int16: value = Convert.ToInt16(jsonValue); break;
+                                    case DataTypes.Int32: value = Convert.ToInt32(jsonValue); break;
+                                    case DataTypes.Int64: value = Convert.ToInt64(jsonValue); break;
+                                    case DataTypes.Integer: value = Convert.ToInt32(jsonValue); break;
+                                    case DataTypes.Number: value = Convert.ToInt32(jsonValue); break;
+                                    case DataTypes.SByte: value = Convert.ToSByte(jsonValue); break;
+                                    case DataTypes.String: value = Convert.ToString(jsonValue); break;
+                                    case DataTypes.UInt16: value = Convert.ToUInt16(jsonValue); break;
+                                    case DataTypes.UInt32: value = Convert.ToUInt32(jsonValue); break;
+                                    case DataTypes.UInt64: value = Convert.ToUInt64(jsonValue); break;
+                                    case DataTypes.UInteger: value = Convert.ToUInt32(jsonValue); break;
+                                    default: throw new NotSupportedException("Data type is not supported.");
+                                }
                             }
-                            else
+                            catch (Exception ex)
                             {
-                                valuesToWrite.Add(
-                                    new WriteValue {
-                                        NodeId = opcMonitoredItem.ConfigNodeId,
-                                        AttributeId = opcMonitoredItem.AttributeId,
-                                        Value = new DataValue {
-                                            Value = jsonValue,
-                                            ServerTimestamp = DateTime.MinValue,
-                                            SourceTimestamp = DateTime.MinValue
-                                        }
-                                    }
-                                );
-                            }
+                                var dataTypeName = GetDataTypeName(dataType);
+
+                                string errorMessage = "Update of reported properties failed.";
+                                if (ex is NotSupportedException) 
+                                {
+                                    errorMessage = $"Data type '{dataTypeName}' is not supported.";
+                                }
+                                else if (ex is FormatException || ex is OverflowException) 
+                                {
+                                    errorMessage = $"Conversion can not be executed. '{jsonValue}' is not of data type '{dataTypeName}'.";
+                                }
+
+                                _logger.Error(ex, $"{nameof(HandleSettingChanged)}: {errorMessage}");
+
+                                reportedProperties[key] = new {
+                                    value = desiredProperties[key]["value"],
+                                    desiredVersion = desiredProperties["$version"],
+                                    message = errorMessage,
+                                    status = "failed"                                    
+                                };
+                                await UpdateReportedPropertiesAsync(reportedProperties);
+
+                                return;
+                            }                        
+
+                            //Create a new WriteValueCollection to write the new information to OPC UA Server
+                            var valuesToWrite = new WriteValueCollection();
+                            var newValueToWrite = new WriteValue
+                            {
+                                NodeId = opcMonitoredItem.ConfigNodeId,
+                                AttributeId = opcMonitoredItem.AttributeId,
+                                Value = new DataValue
+                                {
+                                    Value = value,
+                                    ServerTimestamp = DateTime.MinValue,
+                                    SourceTimestamp = DateTime.MinValue
+                                }
+                            };
+                            valuesToWrite.Add(newValueToWrite);
 
                             opcSubscription.OpcUaClientSubscription.Subscription.Session.Write(
                                 null,
@@ -379,36 +427,30 @@ namespace OpcPublisher
                                 message = "Processed";
                             }
 
-                            if (desiredProperties.Contains("$version"))
+
+                            reportedProperties[key] = new
                             {
-                                reportedProperties[key] = new 
-                                {
-                                    value = desiredProperties[key]["value"],
-                                    status,
-                                    desiredVersion = desiredProperties["$version"],
-                                    message
-                                };
-                                
-                                await UpdateReportedPropertiesAsync(reportedProperties);
-                            }
+                                value = desiredProperties[key]["value"],
+                                status,
+                                desiredVersion = desiredProperties["$version"],
+                                message
+                            };
+
+                            await UpdateReportedPropertiesAsync(reportedProperties);
                         }
                         catch (Exception e)
                         {
                             _logger.Error(e, "Error while updating reported Setting.");
-                            var status = "failed";
-                            var message = $"Failure during synchronizing OPC UA Values, Reason: {e.Message}";
-                            if (desiredProperties.Contains("$version"))
+
+                            reportedProperties[key] = new 
                             {
-                                reportedProperties[key] = new 
-                                {
-                                    value = desiredProperties[key]["value"],
-                                    status,
-                                    desiredVersion = desiredProperties["$version"],
-                                    message
-                                };
-                                
-                                await UpdateReportedPropertiesAsync(reportedProperties);
-                            }
+                                value = desiredProperties[key]["value"],
+                                desiredVersion = desiredProperties["$version"],
+                                status = "failed",
+                                message = $"Failure during synchronizing OPC UA Values, Reason: {e.Message}"
+                            };
+
+                            await UpdateReportedPropertiesAsync(reportedProperties);
                         }
                     }
                 }
@@ -590,6 +632,15 @@ namespace OpcPublisher
         {
             await HandleSettingChanged(new TwinCollection(methodRequest.DataAsJson), null);
             return new MethodResponse((int) HttpStatusCode.OK);
+        }
+
+        private string GetDataTypeName(uint dataTypeValue)
+        {
+            var typeName = typeof(DataTypes).GetFields(BindingFlags.Static | BindingFlags.Public)
+                                            .Single(field => (uint)field.GetValue(null) == dataTypeValue)
+                                            .Name;
+
+            return typeName;
         }
 
         private readonly Logger _logger;
