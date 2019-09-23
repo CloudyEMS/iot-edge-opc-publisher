@@ -24,7 +24,6 @@ namespace OpcPublisher
 
             // init configuration objects
             TelemetryConfiguration = PublisherTelemetryConfiguration.Instance;
-            Diag = PublisherDiagnostics.Instance;
         }
 
         /// <summary>

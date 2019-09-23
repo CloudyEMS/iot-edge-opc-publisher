@@ -243,10 +243,10 @@ namespace OpcPublisher
                                 }
                             }
                         },
-                        { "ms|iothubmessagesize=", $"the max size of a message which can be send to IoTHub. when telemetry of this size is available it will be sent.\n0 will enforce immediate send when telemetry is available\nMin: 0\nMax: {HubMessageSizeMax}\nDefault: {HubMessageSize}", (uint u) => {
+                        { "ms|iothubmessagesize=", $"the max size of a message which can be send to IoTHub. when telemetry of this size is available it will be sent.\n0 will enforce immediate send when telemetry is available\nMin: 0\nMax: {HubMessageSizeMax}\nDefault: {HubMessageSizeDefault}", (uint u) => {
                                 if (u >= 0 && u <= HubMessageSizeMax)
                                 {
-                                    HubMessageSize = u;
+                                    HubMessageSizeDefault = u;
                                 }
                                 else
                                 {
@@ -254,10 +254,10 @@ namespace OpcPublisher
                                 }
                             }
                         },
-                        { "si|iothubsendinterval=", $"the interval in seconds when telemetry should be send to IoTHub. If 0, then only the iothubmessagesize parameter controls when telemetry is sent.\nDefault: '{DefaultSendIntervalSeconds}'", (int i) => {
+                        { "si|iothubsendinterval=", $"the interval in seconds when telemetry should be send to IoTHub. If 0, then only the iothubmessagesize parameter controls when telemetry is sent.\nDefault: '{SendIntervalSecondsDefault}'", (int i) => {
                                 if (i >= 0)
                                 {
-                                    DefaultSendIntervalSeconds = i;
+                                    SendIntervalSecondsDefault = i;
                                 }
                                 else
                                 {
@@ -1022,7 +1022,7 @@ namespace OpcPublisher
             }
 
             // initialize publisher diagnostics
-            Diag = PublisherDiagnostics.Instance;
+            Diag = new PublisherDiagnostics(Hub);
 
             Logger = loggerConfiguration.CreateLogger();
             Logger.Information($"Current directory is: {System.IO.Directory.GetCurrentDirectory()}");

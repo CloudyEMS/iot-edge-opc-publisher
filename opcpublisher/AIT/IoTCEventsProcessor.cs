@@ -94,6 +94,7 @@ namespace OpcPublisher
         {
             DateTime nextSendTime = DateTime.UtcNow + TimeSpan.FromSeconds(_timeout);
             double millisecondsTillNextSend = nextSendTime.Subtract(DateTime.UtcNow).TotalMilliseconds;
+            EventMessageData eventMessageData = null;
 
             while (!_shutdownToken.IsCancellationRequested)
             {
@@ -116,7 +117,6 @@ namespace OpcPublisher
                     }
 
                     var gotItem = _monitoredIoTcEventDataQueue.TryTake(out MessageData messageData, (int)millisecondsTillNextSend, _shutdownToken);
-                    EventMessageData eventMessageData = messageData?.EventMessageData;
 
                     // the two commandline parameter --ms (message size) and --si (send interval) control when data is sent to IoTHub/EdgeHub
                     // pls see detailed comments on performance and memory consumption at https://github.com/Azure/iot-edge-opc-publisher
@@ -124,6 +124,8 @@ namespace OpcPublisher
                     // check if we got an item or if we hit the timeout or got canceled
                     if (gotItem)
                     {
+                        eventMessageData = messageData?.EventMessageData;
+
                         if (_iotCentralMode && eventMessageData != null)
                         {
                             // for IoTCentral we send simple key/value pairs. key is the DisplayName, value the value.

@@ -1,17 +1,16 @@
-﻿using System.Collections.Generic;
-using Newtonsoft.Json;
-using opcpublisher.AIT;
+﻿using Newtonsoft.Json;
 using OpcPublisher;
+using opcpublisher.AIT;
+using System.Collections.Generic;
 using Xunit;
 
 namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
 {
+    using static OpcPublisher.Program;
     using System;
     using System.IO;
     using System.Threading.Tasks;
     using Xunit.Abstractions;
-    using static OpcPublisher.OpcApplicationConfiguration;
-    using static OpcPublisher.Program;
 
     [Collection("Need PLC and publisher config")]
     public sealed class EventConfigurationViaFileUnitTests : IDisposable
@@ -23,7 +22,6 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
 
             // init configuration objects
             TelemetryConfiguration = PublisherTelemetryConfiguration.Instance;
-            Diag = PublisherDiagnostics.Instance;
         }
 
         /// <summary>
@@ -98,7 +96,7 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
                 Assert.True(_configurationFileEntries[0].OpcEvents[0].SelectClauses[0].IotCentralEventPublishMode ==
                             IotCentralEventPublishMode.Property);
                 Assert.True(_configurationFileEntries[0].OpcEvents[0].SelectClauses[0].BrowsePaths[0] == "EventId");
-                
+
                 Assert.True(_configurationFileEntries[0].OpcEvents[0].SelectClauses[1].TypeId == "i=2041");
                 Assert.True(_configurationFileEntries[0].OpcEvents[0].SelectClauses[1].IotCentralEventPublishMode ==
                             IotCentralEventPublishMode.Default);

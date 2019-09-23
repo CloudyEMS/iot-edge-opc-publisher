@@ -1,8 +1,8 @@
 ﻿using Microsoft.Azure.Devices.Client;
 using Moq;
 using Newtonsoft.Json;
-using opcpublisher.AIT;
 using OpcPublisher;
+using opcpublisher.AIT;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -26,7 +26,6 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
 
             // init configuration objects
             TelemetryConfiguration = PublisherTelemetryConfiguration.Instance;
-            Diag = PublisherDiagnostics.Instance;
         }
 
         /// <summary>
@@ -141,11 +140,6 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
                 }
            };
 
-
-        /// <summary>
-        /// Diagnostics object.
-        /// </summary>
-        public static IPublisherDiagnostics Diag { get; set; }
 
         /// <summary>
         /// Node configuration object.

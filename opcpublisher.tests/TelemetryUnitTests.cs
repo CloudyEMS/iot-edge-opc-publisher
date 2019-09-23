@@ -20,7 +20,6 @@ namespace OpcPublisher
         {
             _output = output;
             TelemetryConfiguration = PublisherTelemetryConfiguration.Instance;
-            Diag = PublisherDiagnostics.Instance;
         }
 
         /// <summary>
@@ -203,7 +202,7 @@ namespace OpcPublisher
                 await Task.Delay(3000).ConfigureAwait(false);
                 long eventsAfterDelay = HubCommunicationBase.NumberOfDataChangeEvents;
                 _output.WriteLine($"# of events at start: {eventsAtStart}, # events after connect: {eventsAfterConnect}, # events after delay: {eventsAfterDelay}");
-               _output.WriteLine($"waited {seconds} seconds till monitoring started, events generated {eventsReceived}");
+                _output.WriteLine($"waited {seconds} seconds till monitoring started, events generated {eventsReceived}");
 
                 hubClientMock.VerifySet(m => m.ProductInfo = "OpcPublisher");
                 Assert.Equal(0, eventsAfterDelay - eventsAtStart);

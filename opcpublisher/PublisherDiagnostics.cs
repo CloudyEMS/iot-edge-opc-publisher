@@ -25,29 +25,12 @@ namespace OpcPublisher
         public static int DiagnosticsInterval { get; set; } = 0;
 
         /// <summary>
-        /// Get the singleton.
-        /// </summary>
-        public static IPublisherDiagnostics Instance
-        {
-            get
-            {
-                lock (_singletonLock)
-                {
-                    if (_instance == null)
-                    {
-                        _instance = new PublisherDiagnostics();
-                    }
-                    return _instance;
-                }
-            }
-        }
-
-        /// <summary>
         /// Initialize the diagnostic object.
         /// </summary>
-        public PublisherDiagnostics()
+        public PublisherDiagnostics(IHubCommunication Hub)
         {
             // init data
+            _hub = Hub;
             _showDiagnosticsInfoTask = null;
             _shutdownTokenSource = new CancellationTokenSource();
 
@@ -111,7 +94,7 @@ namespace OpcPublisher
                 diagnosticInfo.MonitoredItemsQueueCapacity = MonitoredItemsQueueCapacity;
                 diagnosticInfo.MonitoredPropertiesQueueCapacity = MonitoredPropertiesQueueCapacity;
                 diagnosticInfo.MonitoredSettingsQueueCapacity = MonitoredSettingsQueueCapacity;
-                diagnosticInfo.MonitoredItemsQueueCount = MonitoredItemsQueueCount;
+                diagnosticInfo.MonitoredItemsQueueCount = _hub.MonitoredItemsQueueCount;
                 diagnosticInfo.MonitoredPropertiesQueueCount = MonitoredPropertiesQueueCount;
                 diagnosticInfo.MonitoredSettingsQueueCount = MonitoredSettingsQueueCount;
                 diagnosticInfo.EnqueueCount = EnqueueCount;
@@ -128,8 +111,8 @@ namespace OpcPublisher
                 diagnosticInfo.TooLargeCount = TooLargeCount;
                 diagnosticInfo.MissedSendIntervalCount = MissedSendIntervalCount;
                 diagnosticInfo.WorkingSetMB = Process.GetCurrentProcess().WorkingSet64 / (1024 * 1024);
-                diagnosticInfo.DefaultSendIntervalSeconds = DefaultSendIntervalSeconds;
-                diagnosticInfo.HubMessageSize = HubMessageSize;
+                diagnosticInfo.DefaultSendIntervalSeconds = SendIntervalSecondsDefault;
+                diagnosticInfo.HubMessageSize = HubMessageSizeDefault;
                 diagnosticInfo.HubProtocol = HubProtocol;
             }
             catch
@@ -331,6 +314,7 @@ namespace OpcPublisher
 
         private static readonly object _singletonLock = new object();
         private static IPublisherDiagnostics _instance = null;
+        private static IHubCommunication _hub;
     }
 
     /// <summary>

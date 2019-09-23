@@ -44,8 +44,8 @@ namespace OpcPublisher
         {
             OpcApplicationConfiguration.OpcSamplingInterval = 1000;
             OpcApplicationConfiguration.OpcPublishingInterval = 0;
-            HubCommunicationBase.DefaultSendIntervalSeconds = 0;
-            HubCommunicationBase.HubMessageSize = 0;
+            HubCommunicationBase.SendIntervalSecondsDefault = 0;
+            HubCommunicationBase.HubMessageSizeDefault = 0;
             OpcMonitoredItem.SkipFirstDefault = false;
             OpcMonitoredItem.HeartbeatIntervalDefault = 0;
         }

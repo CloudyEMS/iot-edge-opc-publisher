@@ -36,7 +36,7 @@ namespace OpcPublisher
         /// <summary>
         /// Number of events in the monitored items queue.
         /// </summary>
-        public static long MonitoredItemsQueueCount => _monitoredItemsDataQueue == null ? 0 : _monitoredItemsDataQueue.Count;
+        public long MonitoredItemsQueueCount => _monitoredItemsDataQueue == null ? 0 : _monitoredItemsDataQueue.Count;
 
         /// <summary>
         /// Number of events we enqueued.
@@ -56,12 +56,16 @@ namespace OpcPublisher
         /// <summary>
         /// Specifies the message size in bytes used for hub communication.
         /// </summary>
-        public static uint HubMessageSize { get; set; } = HubMessageSizeMax;
+        public uint HubMessageSize { get; set; } = HubMessageSizeDefault;
+
+        public static uint HubMessageSizeDefault {get; set;} = HubMessageSizeMax;
 
         /// <summary>
         /// Specifies the send interval in seconds after which a message is sent to the hub.
         /// </summary>
-        public static int DefaultSendIntervalSeconds { get; set; } = 10;
+        public int SendIntervalSeconds { get; set; } = SendIntervalSecondsDefault;
+
+        public static int SendIntervalSecondsDefault {get; set;} = 10;
 
         /// <summary>
         /// Number of DataChange notification events sent to the cloud.
@@ -1468,7 +1472,7 @@ namespace OpcPublisher
                 _logger = Logger;
 
                 // show config
-                Logger.Information($"Message processing and hub communication configured with a send interval of {DefaultSendIntervalSeconds} sec and a message buffer size of {HubMessageSize} bytes.");
+                Logger.Information($"Message processing and hub communication configured with a send interval of {SendIntervalSecondsDefault} sec and a message buffer size of {HubMessageSize} bytes.");
 
                 // create the queue for monitored items
                 _monitoredItemsDataQueue = new BlockingCollection<MessageData>(MonitoredItemsQueueCapacity);
@@ -1478,17 +1482,17 @@ namespace OpcPublisher
                 _monitoredItemsProcessorTask = Task.Factory.StartNew(async () => await MonitoredItemsProcessorAsync().ConfigureAwait(false),
                     _shutdownToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-                _iotcEventsProcessor = new IoTCEventsProcessor(_logger, _hubClient, IotCentralMode, HubMessageSize, HubMessageSizeMax, DefaultSendIntervalSeconds, _shutdownToken);
+                _iotcEventsProcessor = new IoTCEventsProcessor(_logger, _hubClient, IotCentralMode, HubMessageSizeDefault, HubMessageSizeMax, SendIntervalSecondsDefault, _shutdownToken);
                 
                 _monitoredEventsProcessorTask = Task.Factory.StartNew(async () => await _iotcEventsProcessor.MonitoredIoTCEventsProcessorAsync().ConfigureAwait(false),
                     _shutdownToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-                _settingsProcessor = new SettingsProcessor(_logger, _hubClient, IotCentralMode, DefaultSendIntervalSeconds, _shutdownToken);
+                _settingsProcessor = new SettingsProcessor(_logger, _hubClient, IotCentralMode, SendIntervalSecondsDefault, _shutdownToken);
                 
                 _monitoredSettingsProcessorTask = Task.Factory.StartNew(async () => await _settingsProcessor.MonitoredSettingsProcessorAsync().ConfigureAwait(false),
                     _shutdownToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
                     
-                _propertiesProcessor = new PropertiesProcessor(_logger, _hubClient, IotCentralMode, DefaultSendIntervalSeconds, _shutdownToken);
+                _propertiesProcessor = new PropertiesProcessor(_logger, _hubClient, IotCentralMode, SendIntervalSecondsDefault, _shutdownToken);
                 
                 _monitoredPropertiesProcessorTask = Task.Factory.StartNew(async () => await _propertiesProcessor.MonitoredPropertiesProcessorAsync().ConfigureAwait(false),
                     _shutdownToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
@@ -1814,9 +1818,9 @@ namespace OpcPublisher
             uint hubMessageBufferSize = (HubMessageSize > 0 ? HubMessageSize : HubMessageSizeMax) - (uint)systemPropertyLength - jsonSquareBracketLength - (uint)applicationPropertyLength;
             byte[] hubMessageBuffer = new byte[hubMessageBufferSize];
             MemoryStream hubMessage = new MemoryStream(hubMessageBuffer);
-            DateTime nextSendTime = DateTime.UtcNow + TimeSpan.FromSeconds(DefaultSendIntervalSeconds);
+            DateTime nextSendTime = DateTime.UtcNow + TimeSpan.FromSeconds(SendIntervalSeconds);
             double millisecondsTillNextSend = nextSendTime.Subtract(DateTime.UtcNow).TotalMilliseconds;
-            bool singleMessageSend = DefaultSendIntervalSeconds == 0 && HubMessageSize == 0;
+            bool singleMessageSend = SendIntervalSeconds == 0 && HubMessageSize == 0;
 
             using (hubMessage)
             {
@@ -1825,6 +1829,8 @@ namespace OpcPublisher
                     string jsonMessage = string.Empty;
                     bool needToBufferMessage = false;
                     int jsonMessageSize = 0;
+                    EventMessageData eventMessageData = null;
+                    DataChangeMessageData dataChangeMessageData = null;
 
                     hubMessage.Position = 0;
                     hubMessage.SetLength(0);
@@ -1836,7 +1842,7 @@ namespace OpcPublisher
                     while (!_shutdownToken.IsCancellationRequested)
                     {
                         // sanity check the send interval, compute the timeout and get the next monitored item message
-                        if (DefaultSendIntervalSeconds > 0)
+                        if (SendIntervalSeconds > 0)
                         {
                             millisecondsTillNextSend = nextSendTime.Subtract(DateTime.UtcNow).TotalMilliseconds;
                             if (millisecondsTillNextSend < 0)
@@ -1853,8 +1859,6 @@ namespace OpcPublisher
                         }
 
                         bool gotItem = _monitoredItemsDataQueue.TryTake(out MessageData messageData, (int)millisecondsTillNextSend, _shutdownToken);
-                        DataChangeMessageData dataChangeMessageData = messageData?.DataChangeMessageData;
-                        EventMessageData eventMessageData = messageData?.EventMessageData;
 
                         // the two commandline parameter --ms (message size) and --si (send interval) control when data is sent to IoTHub/EdgeHub
                         // pls see detailed comments on performance and memory consumption at https://github.com/Azure/iot-edge-opc-publisher
@@ -1862,6 +1866,8 @@ namespace OpcPublisher
                         // check if we got an item or if we hit the timeout or got canceled
                         if (gotItem)
                         {
+                            dataChangeMessageData = messageData?.DataChangeMessageData;
+                            eventMessageData = messageData?.EventMessageData;
                             if (IotCentralMode && dataChangeMessageData != null)
                             {
                                 // for IoTCentral we send simple key/value pairs. key is the DisplayName, value the value.
@@ -1895,7 +1901,7 @@ namespace OpcPublisher
 
                             // if batching is requested or we need to send at intervals, batch it otherwise send it right away
                             needToBufferMessage = false;
-                            if (HubMessageSize > 0 || (HubMessageSize == 0 && DefaultSendIntervalSeconds > 0))
+                            if (HubMessageSize > 0 || (HubMessageSize == 0 && SendIntervalSeconds > 0))
                             {
                                 // if there is still space to batch, do it. otherwise send the buffer and flag the message for later buffering
                                 if (hubMessage.Position + jsonMessageSize + 1 <= hubMessage.Capacity)
@@ -1932,7 +1938,7 @@ namespace OpcPublisher
                             // if we reached the send interval, but have nothing to send (only the opening square bracket is there), we continue
                             if (!gotItem && hubMessage.Position == 1)
                             {
-                                nextSendTime += TimeSpan.FromSeconds(DefaultSendIntervalSeconds);
+                                nextSendTime += TimeSpan.FromSeconds(SendIntervalSeconds);
                                 hubMessage.Position = 0;
                                 hubMessage.SetLength(0);
                                 if (!singleMessageSend)
@@ -1965,7 +1971,7 @@ namespace OpcPublisher
                                 encodedhubMessage.Properties[MessageSchemaPropertyName] = 
                                     (IotCentralMode && dataChangeMessageData != null) ? MessageSchemaIotCentral : MessageSchemaIotHub;
 
-                                nextSendTime += TimeSpan.FromSeconds(DefaultSendIntervalSeconds);
+                                nextSendTime += TimeSpan.FromSeconds(SendIntervalSeconds);
                                 try
                                 {
                                     encodedhubMessage.Properties["endpointId"] = dataChangeMessageData.EndpointId ?? eventMessageData.EndpointId;
@@ -2084,9 +2090,9 @@ namespace OpcPublisher
         private Task _monitoredSettingsProcessorTask;
         private static PropertiesProcessor _propertiesProcessor;
         private Task _monitoredPropertiesProcessorTask;
-        private static BlockingCollection<MessageData> _monitoredItemsDataQueue = null;
+        private  BlockingCollection<MessageData> _monitoredItemsDataQueue = null;
         private static Task _monitoredItemsProcessorTask;
-        private static IHubClient _hubClient;
+        private IHubClient _hubClient;
         private CancellationTokenSource _hubCommunicationCts;
         private CancellationToken _shutdownToken;
     }

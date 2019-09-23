@@ -1,14 +1,12 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using OpcPublisher;
+using opcpublisher.AIT;
+using static OpcPublisher.Program;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
-using Newtonsoft.Json;
-using opcpublisher.AIT;
-using OpcPublisher;
 using Xunit;
 using Xunit.Abstractions;
-using static OpcPublisher.OpcApplicationConfiguration;
-using static OpcPublisher.Program;
 
 namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
 {
@@ -23,7 +21,6 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
 
             // init configuration objects
             TelemetryConfiguration = PublisherTelemetryConfiguration.Instance;
-            Diag = PublisherDiagnostics.Instance;
         }
 
         /// <summary>
@@ -54,7 +51,7 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
         [Trait("Configuration", "File")]
         [Trait("ConfigurationSetting", "SimpleExtendedConfiguration")]
         [MemberData(nameof(PnPlcEventSimple))]
-        public async void CreateSimpleExtendedConfiguration (string testFilename, int configuredSessions,
+        public async void CreateSimpleExtendedConfiguration(string testFilename, int configuredSessions,
             int configuredSubscriptions, int configuredMonitoredItems, int configuredMonitoredEvents)
         {
             string methodName = UnitTestHelper.GetMethodName();
