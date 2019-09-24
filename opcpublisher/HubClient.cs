@@ -320,7 +320,7 @@ namespace OpcPublisher
                             //Handle OPC UA Property overwrite and acknowledge setting change
                             //Get JSON Value of desired property which is reported by setting change from IoT Central
                             var jsonValue = new Newtonsoft.Json.Linq.JObject(desiredProperties[key])
-                                .GetValue("value").ToString();                         
+                                .GetValue("value").ToString();     
                             
                             var session = opcSession.OpcUaClientSession.GetSession();
 
@@ -388,7 +388,7 @@ namespace OpcPublisher
                                 };
                                 await UpdateReportedPropertiesAsync(reportedProperties);
 
-                                return;
+                                continue;
                             }                        
 
                             //Create a new WriteValueCollection to write the new information to OPC UA Server
