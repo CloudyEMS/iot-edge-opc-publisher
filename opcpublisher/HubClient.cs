@@ -309,7 +309,7 @@ namespace OpcPublisher
                 {
                     foreach (var opcMonitoredItem in opcSubscription.OpcMonitoredItems)
                     {
-                        var key = opcMonitoredItem.DisplayName;
+                        var key = opcMonitoredItem.Key;
                         try
                         {
                             if (!desiredProperties.Contains(key))
