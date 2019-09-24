@@ -337,31 +337,41 @@ namespace OpcPublisher
                             ClientBase.ValidateDiagnosticInfos(attributeDiagnostics, nodesToRead);
 
                             var dataType = (uint)((NodeId)attributeResults.First().Value).Identifier;
-                            
+                            var namespaceIndex = ((NodeId)attributeResults.First().Value).NamespaceIndex;
+
                             object value = null;
 
                             try
                             {
-                                switch (dataType)
+                                if(namespaceIndex == 0)
                                 {
-                                    case DataTypes.Boolean: value = Convert.ToBoolean(jsonValue); break;
-                                    case DataTypes.Byte: value = Convert.ToByte(jsonValue); break;
-                                    case DataTypes.DateTime: value = Convert.ToDateTime(jsonValue); break;
-                                    case DataTypes.Double: value = Convert.ToDouble(jsonValue); break;
-                                    case DataTypes.Float: value = float.Parse(jsonValue); break;
-                                    case DataTypes.Guid: value = new Guid(jsonValue); break;
-                                    case DataTypes.Int16: value = Convert.ToInt16(jsonValue); break;
-                                    case DataTypes.Int32: value = Convert.ToInt32(jsonValue); break;
-                                    case DataTypes.Int64: value = Convert.ToInt64(jsonValue); break;
-                                    case DataTypes.Integer: value = Convert.ToInt32(jsonValue); break;
-                                    case DataTypes.Number: value = Convert.ToInt32(jsonValue); break;
-                                    case DataTypes.SByte: value = Convert.ToSByte(jsonValue); break;
-                                    case DataTypes.String: value = Convert.ToString(jsonValue); break;
-                                    case DataTypes.UInt16: value = Convert.ToUInt16(jsonValue); break;
-                                    case DataTypes.UInt32: value = Convert.ToUInt32(jsonValue); break;
-                                    case DataTypes.UInt64: value = Convert.ToUInt64(jsonValue); break;
-                                    case DataTypes.UInteger: value = Convert.ToUInt32(jsonValue); break;
-                                    default: throw new NotSupportedException("Data type is not supported.");
+                                    switch (dataType)
+                                    {
+                                        case DataTypes.Boolean: value = Convert.ToBoolean(jsonValue); break;
+                                        case DataTypes.Byte: value = Convert.ToByte(jsonValue); break;
+                                        case DataTypes.DateTime: value = Convert.ToDateTime(jsonValue); break;
+                                        case DataTypes.Double: value = Convert.ToDouble(jsonValue); break;
+                                        case DataTypes.Float: value = float.Parse(jsonValue); break;
+                                        case DataTypes.Guid: value = new Guid(jsonValue); break;
+                                        case DataTypes.Int16: value = Convert.ToInt16(jsonValue); break;
+                                        case DataTypes.Int32: value = Convert.ToInt32(jsonValue); break;
+                                        case DataTypes.Int64: value = Convert.ToInt64(jsonValue); break;
+                                        case DataTypes.Integer: value = Convert.ToInt32(jsonValue); break;
+                                        case DataTypes.Number: value = Convert.ToInt32(jsonValue); break;
+                                        case DataTypes.SByte: value = Convert.ToSByte(jsonValue); break;
+                                        case DataTypes.String: value = Convert.ToString(jsonValue); break;
+                                        case DataTypes.UInt16: value = Convert.ToUInt16(jsonValue); break;
+                                        case DataTypes.UInt32: value = Convert.ToUInt32(jsonValue); break;
+                                        case DataTypes.UInt64: value = Convert.ToUInt64(jsonValue); break;
+                                        case DataTypes.UInteger: value = Convert.ToUInt32(jsonValue); break;
+                                        default: throw new NotSupportedException("Data type is not supported.");
+                                    }
+                                } 
+                                else
+                                {
+                                    // custom data type - hope for the best
+                                    value = Convert.ToInt32(jsonValue);
+                                    _logger.Warning("Conversion into a custom data type ({DataType}). Int32 assumed.", dataType);
                                 }
                             }
                             catch (Exception ex)
