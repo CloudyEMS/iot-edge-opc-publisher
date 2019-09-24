@@ -366,8 +366,7 @@ namespace OpcPublisher
                             }
                             catch (Exception ex)
                             {
-                                var dataTypeName = GetDataTypeName(dataType);
-
+                                var dataTypeName = GetDataTypeName(dataType) ?? dataType.ToString();
                                 string errorMessage = "Update of reported properties failed.";
                                 if (ex is NotSupportedException) 
                                 {
@@ -637,8 +636,8 @@ namespace OpcPublisher
         private string GetDataTypeName(uint dataTypeValue)
         {
             var typeName = typeof(DataTypes).GetFields(BindingFlags.Static | BindingFlags.Public)
-                                            .Single(field => (uint)field.GetValue(null) == dataTypeValue)
-                                            .Name;
+                                            .SingleOrDefault(field => (uint)field.GetValue(null) == dataTypeValue)
+                                            ?.Name;
 
             return typeName;
         }
