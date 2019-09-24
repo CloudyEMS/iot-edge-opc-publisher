@@ -271,8 +271,8 @@ namespace OpcPublisher
             }
             else
             {
-                reportedPropertiesEdge[message.DataChangeMessageData.DisplayName] = new JObject();
-                reportedPropertiesEdge[message.DataChangeMessageData.DisplayName]["value"] = message.DataChangeMessageData.Value;
+                reportedPropertiesEdge[message.DataChangeMessageData.Key] = new JObject();
+                reportedPropertiesEdge[message.DataChangeMessageData.Key]["value"] = message.DataChangeMessageData.Value;
             }
             
             var eventMessage = new Message(Encoding.UTF8.GetBytes(reportedPropertiesEdge.ToJson()));
@@ -417,7 +417,7 @@ namespace OpcPublisher
                             string status, message;
                             if (StatusCode.IsBad(results[0]))
                             {
-                                _logger.Error($"[{results[0].ToString()}]: Cannot write Setting value of Monitored Item with NodeId {opcMonitoredItem.Id} and DisplayName {opcMonitoredItem.DisplayName}");
+                                _logger.Error($"[{results[0].ToString()}]: Cannot write Setting value of Monitored Item with NodeId {opcMonitoredItem.Id} and Key {opcMonitoredItem.Key}");
                                 status = "failed";
                                 message = $"Failure during synchronizing OPC UA Values, Reason: {results[0].ToString()}";
                             }
@@ -472,7 +472,7 @@ namespace OpcPublisher
                 {
                     foreach (var opcMonitoredItem in opcSubscription.OpcMonitoredItems)
                     {
-                        if (opcMonitoredItem.DisplayName == methodRequest.Name)
+                        if (opcMonitoredItem.Key == methodRequest.Name)
                         {
                             var inputArguments = new List<object>();
                             var parameterDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(methodRequest.DataAsJson);
