@@ -239,12 +239,12 @@ namespace OpcPublisher
             {
                 reportedPropertiesEdge[message.DataChangeMessageData.Key] = message.DataChangeMessageData.Value;
             }
-            
+
             var eventMessage = new Message(Encoding.UTF8.GetBytes(reportedPropertiesEdge.ToJson()));
             eventMessage.Properties["x-reported-properties"] = "true";
-            
+
             if (_iotHubClient == null)
-            {   
+            {
                 await _edgeHubClient.UpdateReportedPropertiesAsync(reportedPropertiesEdge, ct).ConfigureAwait(false);
                 await _edgeHubClient.SendEventAsync(eventMessage).ConfigureAwait(false);
             }
@@ -274,10 +274,10 @@ namespace OpcPublisher
                 reportedPropertiesEdge[message.DataChangeMessageData.Key] = new JObject();
                 reportedPropertiesEdge[message.DataChangeMessageData.Key]["value"] = message.DataChangeMessageData.Value;
             }
-            
+
             var eventMessage = new Message(Encoding.UTF8.GetBytes(reportedPropertiesEdge.ToJson()));
             eventMessage.Properties["x-reported-properties"] = "true";
-            
+
             if (_iotHubClient == null)
             {
                 await _edgeHubClient.UpdateReportedPropertiesAsync(reportedPropertiesEdge, ct).ConfigureAwait(false);
@@ -320,17 +320,17 @@ namespace OpcPublisher
                             //Handle OPC UA Property overwrite and acknowledge setting change
                             //Get JSON Value of desired property which is reported by setting change from IoT Central
                             var jsonValue = new Newtonsoft.Json.Linq.JObject(desiredProperties[key])
-                                .GetValue("value").ToString();     
-                            
+                                .GetValue("value").ToString();
+
                             var session = opcSession.OpcUaClientSession.GetSession();
 
                             var nodesToRead = new ReadValueIdCollection { new ReadValueId() { NodeId = opcMonitoredItem.ConfigNodeId, AttributeId = Attributes.DataType } };
                             session.Read(
-                                null, 
-                                0, 
-                                TimestampsToReturn.Neither, 
-                                nodesToRead, 
-                                out DataValueCollection attributeResults, 
+                                null,
+                                0,
+                                TimestampsToReturn.Neither,
+                                nodesToRead,
+                                out DataValueCollection attributeResults,
                                 out DiagnosticInfoCollection attributeDiagnostics);
 
                             ClientBase.ValidateResponse(attributeResults, nodesToRead);
@@ -343,7 +343,7 @@ namespace OpcPublisher
 
                             try
                             {
-                                if(namespaceIndex == 0)
+                                if (namespaceIndex == 0)
                                 {
                                     switch (dataType)
                                     {
@@ -366,7 +366,7 @@ namespace OpcPublisher
                                         case DataTypes.UInteger: value = Convert.ToUInt32(jsonValue); break;
                                         default: throw new NotSupportedException("Data type is not supported.");
                                     }
-                                } 
+                                }
                                 else
                                 {
                                     // custom data type - hope for the best
@@ -378,27 +378,28 @@ namespace OpcPublisher
                             {
                                 var dataTypeName = GetDataTypeName(dataType) ?? dataType.ToString();
                                 string errorMessage = "Update of reported properties failed.";
-                                if (ex is NotSupportedException) 
+                                if (ex is NotSupportedException)
                                 {
                                     errorMessage = $"Data type '{dataTypeName}' is not supported.";
                                 }
-                                else if (ex is FormatException || ex is OverflowException) 
+                                else if (ex is FormatException || ex is OverflowException)
                                 {
                                     errorMessage = $"Conversion can not be executed. '{jsonValue}' is not of data type '{dataTypeName}'.";
                                 }
 
                                 _logger.Error(ex, $"{nameof(HandleSettingChanged)}: {errorMessage}");
 
-                                reportedProperties[key] = new {
+                                reportedProperties[key] = new
+                                {
                                     value = desiredProperties[key]["value"],
                                     desiredVersion = desiredProperties["$version"],
                                     message = errorMessage,
-                                    status = "failed"                                    
+                                    status = "failed"
                                 };
                                 await UpdateReportedPropertiesAsync(reportedProperties);
 
                                 continue;
-                            }                        
+                            }
 
                             //Create a new WriteValueCollection to write the new information to OPC UA Server
                             var valuesToWrite = new WriteValueCollection();
@@ -451,7 +452,7 @@ namespace OpcPublisher
                         {
                             _logger.Error(e, "Error while updating reported Setting.");
 
-                            reportedProperties[key] = new 
+                            reportedProperties[key] = new
                             {
                                 value = desiredProperties[key]["value"],
                                 desiredVersion = desiredProperties["$version"],
@@ -536,7 +537,7 @@ namespace OpcPublisher
                                     {
                                         inputArguments.Add(new Variant(Convert.ToDouble(param.Value)));
                                     }
-                                    else if (opcUaArgument.DataType == DataTypeIds.String || 
+                                    else if (opcUaArgument.DataType == DataTypeIds.String ||
                                         opcUaArgument.DataType == DataTypeIds.LocalizedText ||
                                         opcUaArgument.DataType == DataTypeIds.XmlElement ||
                                         opcUaArgument.DataType == DataTypeIds.QualifiedName ||
@@ -544,7 +545,7 @@ namespace OpcPublisher
                                     {
                                         inputArguments.Add(new Variant(param.Value));
                                     }
-                                    else if(opcUaArgument.DataType == DataTypeIds.ServerState ||
+                                    else if (opcUaArgument.DataType == DataTypeIds.ServerState ||
                                         opcUaArgument.DataType == DataTypeIds.RedundancySupport ||
                                         opcUaArgument.DataType == DataTypeIds.NamingRuleType ||
                                         opcUaArgument.DataType == DataTypeIds.IdType ||
@@ -567,7 +568,7 @@ namespace OpcPublisher
                             if (string.IsNullOrEmpty(resultString))
                             {
                                 try
-                                { 
+                                {
                                     opcSubscription.OpcUaClientSubscription.Subscription.Session.Browse(
                                         null,
                                         null,
@@ -589,7 +590,7 @@ namespace OpcPublisher
                                     else
                                     {
                                         var methodResult = opcSubscription.OpcUaClientSubscription.Subscription.Session.Call(
-                                            new NodeId(parentNode.NodeId.Identifier, parentNode.NodeId.NamespaceIndex), 
+                                            new NodeId(parentNode.NodeId.Identifier, parentNode.NodeId.NamespaceIndex),
                                             opcMonitoredItem.ConfigNodeId, inputArguments.ToArray());
 
                                         var methodResultString = string.Join(Environment.NewLine,
@@ -599,7 +600,7 @@ namespace OpcPublisher
                                         resultStatusCode = HttpStatusCode.OK;
                                     }
                                 }
-                                catch(Exception ex)
+                                catch (Exception ex)
                                 {
                                     resultString = ex.Message;
                                     resultStatusCode = HttpStatusCode.InternalServerError;
@@ -612,12 +613,13 @@ namespace OpcPublisher
 
             // Response messages in IoT Central must be sent via reported properties
             var reportedProperties = new TwinCollection();
-            reportedProperties[methodRequest.Name] = new {
+            reportedProperties[methodRequest.Name] = new
+            {
                 value = resultString
             };
             await UpdateReportedPropertiesAsync(reportedProperties);
 
-            return new MethodResponse(null, (int)resultStatusCode);
+            return new MethodResponse((int)resultStatusCode);
         }
 
         private async Task UpdateReportedPropertiesAsync(TwinCollection reportedProperties)
@@ -640,7 +642,7 @@ namespace OpcPublisher
         private async Task<MethodResponse> DesiredPropertiesUpdated(MethodRequest methodRequest, object userContext)
         {
             await HandleSettingChanged(new TwinCollection(methodRequest.DataAsJson), null);
-            return new MethodResponse((int) HttpStatusCode.OK);
+            return new MethodResponse((int)HttpStatusCode.OK);
         }
 
         private string GetDataTypeName(uint dataTypeValue)
