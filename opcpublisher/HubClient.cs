@@ -25,6 +25,11 @@ namespace OpcPublisher
     /// </summary>
     public class HubClient : IHubClient, IDisposable
     {
+        // Iot Central specific values for status property
+        private const string IoTCentral_ReportedPropertyStatusPending = "pending";
+        private const string IoTCentral_ReportedPropertyStatusFailed = "failed";
+        private const string IoTCentral_ReportedPropertyStatusCompleted = "completed";
+
         /// <summary>
         /// Stores custom product information that will be appended to the user agent string that is sent to IoT Hub.
         /// </summary>
@@ -266,6 +271,7 @@ namespace OpcPublisher
                     {
                         reportedPropertiesEdge[eventValue.Name] = new JObject();
                         reportedPropertiesEdge[eventValue.Name]["value"] = eventValue.Value;
+                        reportedPropertiesEdge[eventValue.Name]["status"] = IoTCentral_ReportedPropertyStatusCompleted;
                     }
                 }
             }
@@ -273,6 +279,7 @@ namespace OpcPublisher
             {
                 reportedPropertiesEdge[message.DataChangeMessageData.Key] = new JObject();
                 reportedPropertiesEdge[message.DataChangeMessageData.Key]["value"] = message.DataChangeMessageData.Value;
+                reportedPropertiesEdge[message.DataChangeMessageData.Key]["status"] = IoTCentral_ReportedPropertyStatusCompleted;
             }
 
             var eventMessage = new Message(Encoding.UTF8.GetBytes(reportedPropertiesEdge.ToJson()));
@@ -428,13 +435,13 @@ namespace OpcPublisher
                             if (StatusCode.IsBad(results[0]))
                             {
                                 _logger.Error($"[{results[0].ToString()}]: Cannot write Setting value of Monitored Item with NodeId {opcMonitoredItem.Id} and Key {opcMonitoredItem.Key}");
-                                status = "failed";
+                                status = IoTCentral_ReportedPropertyStatusFailed;
                                 message = $"Failure during synchronizing OPC UA Values, Reason: {results[0].ToString()}";
                             }
                             else
                             {
-                                status = "completed";
-                                message = "Processed";
+                                status = IoTCentral_ReportedPropertyStatusCompleted;
+                                message = string.Empty;
                             }
 
 
@@ -456,7 +463,7 @@ namespace OpcPublisher
                             {
                                 value = desiredProperties[key]["value"],
                                 desiredVersion = desiredProperties["$version"],
-                                status = "failed",
+                                status = IoTCentral_ReportedPropertyStatusFailed,
                                 message = $"Failure during synchronizing OPC UA Values, Reason: {e.Message}"
                             };
 
