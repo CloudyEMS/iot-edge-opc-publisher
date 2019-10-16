@@ -355,7 +355,6 @@ namespace OpcPublisher
             _sessionCancelationToken = _sessionCancelationTokenSource.Token;
             _opcSessionSemaphore = new SemaphoreSlim(1);
             _namespaceTable = new NamespaceTable();
-            _telemetryConfiguration = TelemetryConfiguration.GetEndpointTelemetryConfiguration(endpointUrl);
             _connectAndMonitorAsync = Task.Run(async () => await ConnectAndMonitorAsync(), _sessionCancelationToken);
             this.OpcAuthenticationMode= opcAuthenticationMode;
             this.EncryptedAuthCredential = encryptedAuthCredential;
@@ -1793,7 +1792,6 @@ namespace OpcPublisher
         private CancellationTokenSource _sessionCancelationTokenSource;
         private CancellationToken _sessionCancelationToken;
         private NamespaceTable _namespaceTable;
-        private EndpointTelemetryConfigurationModel _telemetryConfiguration;
         private Task _connectAndMonitorAsync;
     }
 }

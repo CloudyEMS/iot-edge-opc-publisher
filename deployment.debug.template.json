@@ -52,7 +52,7 @@
             "restartPolicy": "always",
             "settings": {
               "image": "localhost:5000/opcpublisher:0.0.1-amd64.debug",
-              "createOptions": "{\"Hostname\":\"publisher\",\"Cmd\":[\"edgepublisher\",\"--pf=/appdata/publishednodes.json\",\"--di=60\",\"--ll=debug\",\"--to\",\"--aa\",\"--ki\",\"30\",\"--si\",\"0\",\"--ms\",\"0\",\"--ic\"],\"HostConfig\":{\"PortBindings\":{\"62222/tcp\":[{\"HostPort\":\"62222\"}],\"1883/tcp\":[{\"HostPort\":\"2883\"}],\"5672/tcp\":[{\"HostPort\":\"5672\"}]},\"Binds\":[\"c:\\\\iotedge:/appdata/\"],\"ExtraHosts\":[\"localhost:127.0.0.1\"]}}"
+              "createOptions": "{\"Hostname\":\"publisher\",\"Cmd\":[\"edgepublisher\",\"--pf=/appdata/publishednodes.json\",\"--di=60\",\"--ll=debug\",\"--to\",\"--aa\",\"--ki\",\"30\",\"--si\",\"0\",\"--ms\",\"0\"],\"HostConfig\":{\"PortBindings\":{\"62222/tcp\":[{\"HostPort\":\"62222\"}],\"1883/tcp\":[{\"HostPort\":\"2883\"}],\"5672/tcp\":[{\"HostPort\":\"5672\"}]},\"Binds\":[\"c:\\\\iotedge:/appdata/\"],\"ExtraHosts\":[\"localhost:127.0.0.1\"]}}"
             }
           },
           "messagerouter": {

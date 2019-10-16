@@ -31,6 +31,11 @@ namespace OpcPublisher
     public interface IPublisherTelemetryConfiguration
     {
         /// <summary>
+        /// Gets the default configuration used when no other is available
+        /// </summary>
+        EndpointTelemetryConfigurationModel DefaultEndpointTelemetryConfiguration { get; }
+
+        /// <summary>
         /// Method to get the telemetry configuration for a specific endpoint URL. If the endpoint URL is not found, then the default configuration is returned.
         /// </summary>
         EndpointTelemetryConfigurationModel GetEndpointTelemetryConfiguration(string endpointUrl);

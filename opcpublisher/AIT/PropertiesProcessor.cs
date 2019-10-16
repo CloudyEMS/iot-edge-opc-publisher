@@ -10,7 +10,6 @@ namespace OpcPublisher
     {
         private readonly Logger _logger;
         private readonly IHubClient _hubClient;
-        private readonly bool _iotCentralMode;
         private readonly int _defaultSendIntervalSeconds;
         private readonly CancellationToken _shutdownToken;
         private static BlockingCollection<MessageData> _monitoredPropertiesDataQueue;
@@ -33,11 +32,10 @@ namespace OpcPublisher
         /// </summary>
         public long SentProperties { get; set; }
 
-        public PropertiesProcessor(Logger logger, IHubClient hubClient, bool iotCentralMode, int defaultSendIntervalSeconds, CancellationToken shutdownToken)
+        public PropertiesProcessor(Logger logger, IHubClient hubClient, int defaultSendIntervalSeconds, CancellationToken shutdownToken)
         {
             _logger = logger;
             _hubClient = hubClient;
-            _iotCentralMode = iotCentralMode;
             _defaultSendIntervalSeconds = defaultSendIntervalSeconds;
             _shutdownToken = shutdownToken;
             
@@ -59,8 +57,6 @@ namespace OpcPublisher
 
         public Task MonitoredPropertiesProcessorAsync()
         {
-            if (!_iotCentralMode) return Task.CompletedTask;
-            
             DateTime nextSendTime = DateTime.UtcNow + TimeSpan.FromSeconds(_defaultSendIntervalSeconds);
             double millisecondsTillNextSend = nextSendTime.Subtract(DateTime.UtcNow).TotalMilliseconds;
 

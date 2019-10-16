@@ -1482,17 +1482,17 @@ namespace OpcPublisher
                 _monitoredItemsProcessorTask = Task.Factory.StartNew(async () => await MonitoredItemsProcessorAsync().ConfigureAwait(false),
                     _shutdownToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-                _iotcEventsProcessor = new IoTCEventsProcessor(_logger, _hubClient, IotCentralMode, HubMessageSizeDefault, HubMessageSizeMax, SendIntervalSecondsDefault, _shutdownToken);
+                _iotcEventsProcessor = new IoTCEventsProcessor(_logger, _hubClient, HubMessageSizeDefault, HubMessageSizeMax, SendIntervalSecondsDefault, _shutdownToken);
                 
                 _monitoredEventsProcessorTask = Task.Factory.StartNew(async () => await _iotcEventsProcessor.MonitoredIoTCEventsProcessorAsync().ConfigureAwait(false),
                     _shutdownToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-                _settingsProcessor = new SettingsProcessor(_logger, _hubClient, IotCentralMode, SendIntervalSecondsDefault, _shutdownToken);
+                _settingsProcessor = new SettingsProcessor(_logger, _hubClient, SendIntervalSecondsDefault, _shutdownToken);
                 
                 _monitoredSettingsProcessorTask = Task.Factory.StartNew(async () => await _settingsProcessor.MonitoredSettingsProcessorAsync().ConfigureAwait(false),
                     _shutdownToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
                     
-                _propertiesProcessor = new PropertiesProcessor(_logger, _hubClient, IotCentralMode, SendIntervalSecondsDefault, _shutdownToken);
+                _propertiesProcessor = new PropertiesProcessor(_logger, _hubClient, SendIntervalSecondsDefault, _shutdownToken);
                 
                 _monitoredPropertiesProcessorTask = Task.Factory.StartNew(async () => await _propertiesProcessor.MonitoredPropertiesProcessorAsync().ConfigureAwait(false),
                     _shutdownToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
@@ -1530,8 +1530,8 @@ namespace OpcPublisher
         {
             try
             {
-                // get telemetry configration
-                EndpointTelemetryConfigurationModel telemetryConfiguration = TelemetryConfiguration.GetEndpointTelemetryConfiguration(messageData.EndpointUrl);
+                // since the router relies on a fixed message format, we dont allow per-endpoint configuration and use the default for all endpoints
+                var telemetryConfiguration = TelemetryConfiguration.DefaultEndpointTelemetryConfiguration;
 
                 // currently the pattern processing is done in MonitoredItemNotificationHandler of OpcSession.cs. in case of perf issues
                 // it can be also done here, the risk is then to lose messages in the communication queue. if you enable it here, disable it in OpcSession.cs
@@ -1630,6 +1630,13 @@ namespace OpcPublisher
                         {
                             await _jsonWriter.WritePropertyNameAsync(telemetryConfiguration.Value.SourceTimestamp.Name).ConfigureAwait(false);
                             await _jsonWriter.WriteValueAsync(messageData.SourceTimestamp).ConfigureAwait(false);
+                        }
+
+                        // process ReceiveTimestamp
+                        if (!string.IsNullOrEmpty(messageData.ReceiveTimestamp))
+                        {
+                            await _jsonWriter.WritePropertyNameAsync(telemetryConfiguration.Value.ReceiveTimestamp.Name).ConfigureAwait(false);
+                            await _jsonWriter.WriteValueAsync(messageData.ReceiveTimestamp).ConfigureAwait(false);
                         }
 
                         // process StatusCode
@@ -1776,35 +1783,6 @@ namespace OpcPublisher
         }
 
         /// <summary>
-        /// Creates an IoTCentral JSON message for a data change notification, based on the telemetry configuration for the endpoint.
-        /// </summary>
-        private async Task<string> CreateIoTCentralJsonForDataChangeAsync(DataChangeMessageData messageData)
-        {
-            try
-            {
-                // build the JSON message for IoTCentral
-                StringBuilder _jsonStringBuilder = new StringBuilder();
-                StringWriter _jsonStringWriter = new StringWriter(_jsonStringBuilder);
-                using (JsonWriter _jsonWriter = new JsonTextWriter(_jsonStringWriter))
-                {
-                    await _jsonWriter.WriteStartObjectAsync().ConfigureAwait(false);
-                    await _jsonWriter.WritePropertyNameAsync(messageData.Key).ConfigureAwait(false);
-                    await _jsonWriter.WriteValueAsync(messageData.Value).ConfigureAwait(false);
-                    await _jsonWriter.WritePropertyNameAsync("messageType").ConfigureAwait(false);
-                    await _jsonWriter.WriteValueAsync("measurement").ConfigureAwait(false);
-                    await _jsonWriter.WriteEndObjectAsync().ConfigureAwait(false);
-                    await _jsonWriter.FlushAsync().ConfigureAwait(false);
-                }
-                return _jsonStringBuilder.ToString();
-            }
-            catch (Exception e)
-            {
-                Logger.Error(e, "Generation of IoTCentral JSON message failed.");
-            }
-            return string.Empty;
-        }
-
-        /// <summary>
         /// Dequeue monitored item notification messages, batch them for send (if needed) and send them to IoTHub.
         /// </summary>
         public virtual async Task MonitoredItemsProcessorAsync()
@@ -1868,24 +1846,17 @@ namespace OpcPublisher
                         {
                             dataChangeMessageData = messageData?.DataChangeMessageData;
                             eventMessageData = messageData?.EventMessageData;
-                            if (IotCentralMode && dataChangeMessageData != null)
+
+                            // create a JSON message from notification data
+                            if (dataChangeMessageData != null)
                             {
-                                // for IoTCentral we send simple key/value pairs. key is the DisplayName, value the value.
-                                jsonMessage = await CreateIoTCentralJsonForDataChangeAsync(dataChangeMessageData).ConfigureAwait(false);
+                                NumberOfDataChangeEvents++;
+                                jsonMessage = await CreateJsonForDataChangeAsync(dataChangeMessageData).ConfigureAwait(false);
                             }
-                            else
+                            if (eventMessageData != null)
                             {
-                                // create a JSON message from notification data
-                                if (dataChangeMessageData != null)
-                                {
-                                    NumberOfDataChangeEvents++;
-                                    jsonMessage = await CreateJsonForDataChangeAsync(dataChangeMessageData).ConfigureAwait(false);
-                                }
-                                if (eventMessageData != null)
-                                {
-                                    NumberOfEvents++;
-                                    jsonMessage = await CreateJsonForEventAsync(eventMessageData).ConfigureAwait(false);
-                                }
+                                NumberOfEvents++;
+                                jsonMessage = await CreateJsonForEventAsync(eventMessageData).ConfigureAwait(false);
                             }
 
                             jsonMessageSize = Encoding.UTF8.GetByteCount(jsonMessage.ToString(CultureInfo.InvariantCulture));
@@ -1965,11 +1936,6 @@ namespace OpcPublisher
                             {
                                 encodedhubMessage.ContentType = CONTENT_TYPE_OPCUAJSON;
                                 encodedhubMessage.ContentEncoding = CONTENT_ENCODING_UTF8;
-
-                                // Mimic the condition for encoding...
-                                // Note that events are always encoded with default schema, IotCentralMode only affects data
-                                encodedhubMessage.Properties[MessageSchemaPropertyName] = 
-                                    (IotCentralMode && dataChangeMessageData != null) ? MessageSchemaIotCentral : MessageSchemaIotHub;
 
                                 nextSendTime += TimeSpan.FromSeconds(SendIntervalSeconds);
                                 try

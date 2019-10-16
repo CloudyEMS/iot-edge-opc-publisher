@@ -20,7 +20,6 @@ namespace OpcPublisher
         private readonly ILogger _logger;
         private readonly IHubClient _hubClient;
         private static BlockingCollection<MessageData> _monitoredIoTcEventDataQueue;
-        private bool _iotCentralMode;
         private uint _hubMessageSize;
         private uint _hubMessageSizeMax;
         private int _timeout;
@@ -64,11 +63,10 @@ namespace OpcPublisher
         /// </summary>
         public static int MonitoredSettingsIoTcEventCapacity { get; set; } = 8192;
 
-        public IoTCEventsProcessor(ILogger logger, IHubClient hubClient, bool iotCentralMode, uint hubMessageSize, uint hubMessageSizeMax, int timeout, CancellationToken shutdownToken)
+        public IoTCEventsProcessor(ILogger logger, IHubClient hubClient, uint hubMessageSize, uint hubMessageSizeMax, int timeout, CancellationToken shutdownToken)
         {
             _logger = logger;
             _hubClient = hubClient;
-            _iotCentralMode = iotCentralMode;
             _hubMessageSize = hubMessageSize;
             _hubMessageSizeMax = hubMessageSizeMax;
             _timeout = timeout;
@@ -126,7 +124,7 @@ namespace OpcPublisher
                     {
                         eventMessageData = messageData?.EventMessageData;
 
-                        if (_iotCentralMode && eventMessageData != null)
+                        if (eventMessageData != null)
                         {
                             // for IoTCentral we send simple key/value pairs. key is the DisplayName, value the value.
                             _jsonMessage = await CreateIoTCentralJsonForEventChangeAsync(eventMessageData, _shutdownToken).ConfigureAwait(false);
@@ -170,7 +168,7 @@ namespace OpcPublisher
                         }
                         else
                         {
-                            _logger.Error("Configuration of IoT-Central events is only possible in IoT Central mode");
+                            _logger.Error("EventMessageData is null, there is a problem getting OPC UA Event data.");
                         }
                     }
                     else

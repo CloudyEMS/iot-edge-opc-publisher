@@ -232,6 +232,20 @@ namespace OpcPublisher
         }
 
         /// <summary>
+        /// The ReceiveTimestamp value telemetry configuration.
+        /// </summary>
+        public ITelemetrySettings ReceiveTimestamp
+        {
+            get => _receiveTimestamp;
+            set
+            {
+                _receiveTimestamp.Publish = value.Publish;
+                _receiveTimestamp.Name = value.Name;
+                _receiveTimestamp.Pattern = value.Pattern;
+            }
+        }
+
+        /// <summary>
         /// The StatusCode value telemetry configuration.
         /// </summary>
         public ITelemetrySettings StatusCode
@@ -281,6 +295,7 @@ namespace OpcPublisher
             _flat = null;
             _value = new TelemetrySettings();
             _sourceTimestamp = new TelemetrySettings();
+            _receiveTimestamp = new TelemetrySettings();
             _statusCode = new TelemetrySettings();
             _status = new TelemetrySettings();
             _publishTime = new TelemetrySettings();
@@ -289,6 +304,7 @@ namespace OpcPublisher
         private bool? _flat;
         private TelemetrySettings _value;
         private TelemetrySettings _sourceTimestamp;
+        private TelemetrySettings _receiveTimestamp;
         private TelemetrySettings _statusCode;
         private TelemetrySettings _status;
         private TelemetrySettings _publishTime;
@@ -387,6 +403,7 @@ namespace OpcPublisher
                 _value.Flat = value.Flat;
                 _value.Value = value.Value;
                 _value.SourceTimestamp = value.SourceTimestamp;
+                _value.ReceiveTimestamp = value.ReceiveTimestamp;
                 _value.StatusCode = value.StatusCode;
                 _value.Status = value.Status;
             }
@@ -448,6 +465,7 @@ namespace OpcPublisher
         public const string DisplayNameNameDefault = "DisplayName";
         public const string ValueNameDefault = "Value";
         public const string SourceTimestampNameDefault = "SourceTimestamp";
+        public const string ReceiveTimestampNameDefault = "ReceiveTimestamp";
         public const string StatusNameDefault = "Status";
         public const string StatusCodeNameDefault = "StatusCode";
         public const string PublishTimeNameDefault = "PublishTime";
@@ -469,6 +487,17 @@ namespace OpcPublisher
                     }
                     return _instance;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Gets the default configuration used when no other is available
+        /// </summary>
+        public EndpointTelemetryConfigurationModel DefaultEndpointTelemetryConfiguration
+        {
+            get
+            {
+                return _defaultEndpointTelemetryConfiguration;
             }
         }
 
@@ -525,7 +554,7 @@ namespace OpcPublisher
             }
             if (config.EndpointUrl.Name != null || config.NodeId.Name != null ||
                 config.MonitoredItem.ApplicationUri.Name != null || config.MonitoredItem.DisplayName.Name != null ||
-                config.Value.Value.Name != null || config.Value.SourceTimestamp.Name != null || config.Value.StatusCode.Name != null || config.Value.Status.Name != null)
+                config.Value.Value.Name != null || config.Value.SourceTimestamp.Name != null || config.Value.ReceiveTimestamp.Name != null || config.Value.StatusCode.Name != null || config.Value.Status.Name != null)
             {
                 Logger.Fatal("The property 'Name' is not allowed in any object in the 'EndpointSpecific' array. Please change.");
                 return false;
@@ -554,6 +583,7 @@ namespace OpcPublisher
             _defaultEndpointTelemetryConfiguration.MonitoredItem.DisplayName.Name = DisplayNameNameDefault;
             _defaultEndpointTelemetryConfiguration.Value.Value.Name = ValueNameDefault;
             _defaultEndpointTelemetryConfiguration.Value.SourceTimestamp.Name = SourceTimestampNameDefault;
+            _defaultEndpointTelemetryConfiguration.Value.ReceiveTimestamp.Name = ReceiveTimestampNameDefault;
             _defaultEndpointTelemetryConfiguration.Value.StatusCode.Name = StatusCodeNameDefault;
             _defaultEndpointTelemetryConfiguration.Value.Status.Name = StatusCodeNameDefault;
             _defaultEndpointTelemetryConfiguration.Value.PublishTime.Name = StatusCodeNameDefault;
@@ -566,6 +596,7 @@ namespace OpcPublisher
             _defaultEndpointTelemetryConfiguration.MonitoredItem.DisplayName.Publish = true;
             _defaultEndpointTelemetryConfiguration.Value.Value.Publish = true;
             _defaultEndpointTelemetryConfiguration.Value.SourceTimestamp.Publish = true;
+            _defaultEndpointTelemetryConfiguration.Value.ReceiveTimestamp.Publish = true;
             _defaultEndpointTelemetryConfiguration.Value.StatusCode.Publish = false;
             _defaultEndpointTelemetryConfiguration.Value.Status.Publish = false;
             _defaultEndpointTelemetryConfiguration.Value.PublishTime.Publish = false;
@@ -639,6 +670,10 @@ namespace OpcPublisher
             config.Value.SourceTimestamp.Name = config.Value.SourceTimestamp.Name ?? _defaultEndpointTelemetryConfiguration.Value.SourceTimestamp.Name;
             config.Value.SourceTimestamp.Publish = config.Value.SourceTimestamp.Publish ?? _defaultEndpointTelemetryConfiguration.Value.SourceTimestamp.Publish;
             config.Value.SourceTimestamp.Pattern = config.Value.SourceTimestamp.Pattern ?? _defaultEndpointTelemetryConfiguration.Value.SourceTimestamp.Pattern;
+
+            config.Value.ReceiveTimestamp.Name = config.Value.ReceiveTimestamp.Name ?? _defaultEndpointTelemetryConfiguration.Value.ReceiveTimestamp.Name;
+            config.Value.ReceiveTimestamp.Publish = config.Value.ReceiveTimestamp.Publish ?? _defaultEndpointTelemetryConfiguration.Value.ReceiveTimestamp.Publish;
+            config.Value.ReceiveTimestamp.Pattern = config.Value.ReceiveTimestamp.Pattern ?? _defaultEndpointTelemetryConfiguration.Value.ReceiveTimestamp.Pattern;
 
             config.Value.StatusCode.Name = config.Value.StatusCode.Name ?? _defaultEndpointTelemetryConfiguration.Value.StatusCode.Name;
             config.Value.StatusCode.Publish = config.Value.StatusCode.Publish ?? _defaultEndpointTelemetryConfiguration.Value.StatusCode.Publish;

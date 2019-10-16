@@ -34,7 +34,7 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
                         cancellationTokenSource.Cancel();
                     });
 
-                var eventProcessor = new IoTCEventsProcessor(Serilog.Log.Logger, hubClient.Object, true, 0, 512, 0, cancellationTokenSource.Token);
+                var eventProcessor = new IoTCEventsProcessor(Serilog.Log.Logger, hubClient.Object, 0, 512, 0, cancellationTokenSource.Token);
 
                 _ = Task.Run(() => eventProcessor.MonitoredIoTCEventsProcessorAsync());
 
@@ -103,7 +103,7 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
                     }
                 };
                 int messageLength = 33;
-                var eventProcessor = new IoTCEventsProcessor(Serilog.Log.Logger, hubClient.Object, true, 0, 1000000, timeoutSeconds, cancellationTokenSource.Token);
+                var eventProcessor = new IoTCEventsProcessor(Serilog.Log.Logger, hubClient.Object, 0, 1000000, timeoutSeconds, cancellationTokenSource.Token);
 
                 lastMessageSent = DateTime.UtcNow;
                 _ = Task.Run(() => eventProcessor.MonitoredIoTCEventsProcessorAsync());
@@ -162,7 +162,7 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
                 //messagesToSend should be 1 higher then the messages received because the last one sent is needed to trigger the buffer overflow
                 int messagesToSend = (int)((bufferSizeWithoutOverhead - 1) / (messageLength + 1)) + 1;
 
-                var eventProcessor = new IoTCEventsProcessor(Serilog.Log.Logger, hubClient.Object, true, buffersize, buffersize, 0, cancellationTokenSource.Token);
+                var eventProcessor = new IoTCEventsProcessor(Serilog.Log.Logger, hubClient.Object, buffersize, buffersize, 0, cancellationTokenSource.Token);
                 _ = Task.Run(() => eventProcessor.MonitoredIoTCEventsProcessorAsync());
 
                 for (int messagesSent = 0; messagesSent < messagesToSend; messagesSent++)

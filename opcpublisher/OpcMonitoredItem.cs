@@ -154,6 +154,11 @@ namespace OpcPublisher
         public string SourceTimestamp { get; set; }
 
         /// <summary>
+        /// The timestamp when the value was received by the opc publisher.
+        /// </summary>
+        public string ReceiveTimestamp { get; set; }
+
+        /// <summary>
         /// The OPC UA status code of the value.
         /// </summary>
         public uint? StatusCode { get; set; }
@@ -186,6 +191,10 @@ namespace OpcPublisher
             if (telemetryConfiguration.Value.SourceTimestamp.Publish == true)
             {
                 SourceTimestamp = telemetryConfiguration.Value.SourceTimestamp.PatternMatch(SourceTimestamp);
+            }
+            if (telemetryConfiguration.Value.ReceiveTimestamp.Publish == true)
+            {
+                ReceiveTimestamp = telemetryConfiguration.Value.ReceiveTimestamp.PatternMatch(ReceiveTimestamp);
             }
             if (telemetryConfiguration.Value.StatusCode.Publish == true && StatusCode != null)
             {
@@ -597,82 +606,70 @@ namespace OpcPublisher
                 DataChangeMessageData dataChangeMessageData = new DataChangeMessageData();
                 dataChangeMessageData.EndpointId = EndpointId.ToString();
                 dataChangeMessageData.Key = Key;
+                dataChangeMessageData.IotCentralItemPublishMode = IotCentralItemPublishMode;
 
-                if (IotCentralMode)
+                // update the required message data to pass only the required data to the hub communication
+                // since the router relies on a fixed message format, we dont allow per-endpoint configuration and use the default for all endpoints
+                var telemetryConfiguration = TelemetryConfiguration.DefaultEndpointTelemetryConfiguration;
+
+                // the endpoint URL is required to allow HubCommunication lookup the telemetry configuration
+                dataChangeMessageData.EndpointUrl = EndpointUrl;
+
+                if (telemetryConfiguration.ExpandedNodeId.Publish == true)
                 {
+                    dataChangeMessageData.ExpandedNodeId = ConfigExpandedNodeId?.ToString();
+                }
+                if (telemetryConfiguration.NodeId.Publish == true)
+                {
+                    dataChangeMessageData.NodeId = OriginalId;
+                }
+                if (telemetryConfiguration.MonitoredItem.ApplicationUri.Publish == true)
+                {
+                    dataChangeMessageData.ApplicationUri = (monitoredItem.Subscription.Session.Endpoint.Server.ApplicationUri + (string.IsNullOrEmpty(OpcSession.PublisherSite) ? "" : $":{OpcSession.PublisherSite}"));
+                }
+                if (telemetryConfiguration.MonitoredItem.DisplayName.Publish == true && monitoredItem.DisplayName != null)
+                {
+                    // use the DisplayName as reported in the MonitoredItem
                     dataChangeMessageData.DisplayName = monitoredItem.DisplayName;
-                    dataChangeMessageData.IotCentralItemPublishMode = IotCentralItemPublishMode;
-
-                    if (value.Value != null)
-                    {
-                        string encodedValue = string.Empty;
-                        EncodeValue(value, monitoredItem.Subscription.Session.MessageContext, out encodedValue, out bool preserveValueQuotes);
-                        dataChangeMessageData.Value = encodedValue;
-                        dataChangeMessageData.PreserveValueQuotes = preserveValueQuotes;
-                    }
-
-                    Logger.Debug($"   IoTCentral key: {dataChangeMessageData.Key}");
-                    Logger.Debug($"   IoTCentral values: {dataChangeMessageData.Value}");
                 }
-                else
+                if (telemetryConfiguration.Value.SourceTimestamp.Publish == true && value.SourceTimestamp != null)
                 {
-                    // update the required message data to pass only the required data to the hub communication
-                    EndpointTelemetryConfigurationModel telemetryConfiguration = TelemetryConfiguration.GetEndpointTelemetryConfiguration(EndpointUrl);
-
-                    // the endpoint URL is required to allow HubCommunication lookup the telemetry configuration
-                    dataChangeMessageData.EndpointUrl = EndpointUrl;
-
-                    if (telemetryConfiguration.ExpandedNodeId.Publish == true)
-                    {
-                        dataChangeMessageData.ExpandedNodeId = ConfigExpandedNodeId?.ToString();
-                    }
-                    if (telemetryConfiguration.NodeId.Publish == true)
-                    {
-                        dataChangeMessageData.NodeId = OriginalId;
-                    }
-                    if (telemetryConfiguration.MonitoredItem.ApplicationUri.Publish == true)
-                    {
-                        dataChangeMessageData.ApplicationUri = (monitoredItem.Subscription.Session.Endpoint.Server.ApplicationUri + (string.IsNullOrEmpty(OpcSession.PublisherSite) ? "" : $":{OpcSession.PublisherSite}"));
-                    }
-                    if (telemetryConfiguration.MonitoredItem.DisplayName.Publish == true && monitoredItem.DisplayName != null)
-                    {
-                        // use the DisplayName as reported in the MonitoredItem
-                        dataChangeMessageData.DisplayName = monitoredItem.DisplayName;
-                    }
-                    if (telemetryConfiguration.Value.SourceTimestamp.Publish == true && value.SourceTimestamp != null)
-                    {
-                        // use the SourceTimestamp as reported in the notification event argument in ISO8601 format
-                        dataChangeMessageData.SourceTimestamp = value.SourceTimestamp.ToString("o", CultureInfo.InvariantCulture);
-                    }
-                    if (telemetryConfiguration.Value.StatusCode.Publish == true && value.StatusCode != null)
-                    {
-                        // use the StatusCode as reported in the notification event argument
-                        dataChangeMessageData.StatusCode = value.StatusCode.Code;
-                    }
-                    if (telemetryConfiguration.Value.Status.Publish == true && value.StatusCode != null)
-                    {
-                        // use the StatusCode as reported in the notification event argument to lookup the symbolic name
-                        dataChangeMessageData.Status = StatusCode.LookupSymbolicId(value.StatusCode.Code);
-                    }
-                    if (telemetryConfiguration.Value.Value.Publish == true && value.Value != null)
-                    {
-                        string encodedValue = string.Empty;
-                        EncodeValue(value, monitoredItem.Subscription.Session.MessageContext, out encodedValue, out bool preserveValueQuotes);
-                        dataChangeMessageData.Value = encodedValue;
-                        dataChangeMessageData.PreserveValueQuotes = preserveValueQuotes;
-                    }
-
-                    // currently the pattern processing is done here, which adds runtime to the notification processing.
-                    // In case of perf issues it can be also done in CreateJsonForDataChangeAsync of IoTHubMessaging.cs.
-
-                    // apply patterns
-                    dataChangeMessageData.ApplyPatterns(telemetryConfiguration);
-
-                    Logger.Debug($"   ApplicationUri: {dataChangeMessageData.ApplicationUri}");
-                    Logger.Debug($"   EndpointUrl: {dataChangeMessageData.EndpointUrl}");
-                    Logger.Debug($"   DisplayName: {dataChangeMessageData.DisplayName}");
-                    Logger.Debug($"   Value: {dataChangeMessageData.Value}");
+                    // use the SourceTimestamp as reported in the notification event argument in ISO8601 format
+                    dataChangeMessageData.SourceTimestamp = value.SourceTimestamp.ToString("o", CultureInfo.InvariantCulture);
                 }
+                if (telemetryConfiguration.Value.ReceiveTimestamp.Publish == true)
+                {
+                    // use the ReceiveTimestamp as reported in the notification event argument in ISO8601 format
+                    dataChangeMessageData.ReceiveTimestamp = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
+                }
+                if (telemetryConfiguration.Value.StatusCode.Publish == true && value.StatusCode != null)
+                {
+                    // use the StatusCode as reported in the notification event argument
+                    dataChangeMessageData.StatusCode = value.StatusCode.Code;
+                }
+                if (telemetryConfiguration.Value.Status.Publish == true && value.StatusCode != null)
+                {
+                    // use the StatusCode as reported in the notification event argument to lookup the symbolic name
+                    dataChangeMessageData.Status = StatusCode.LookupSymbolicId(value.StatusCode.Code);
+                }
+                if (telemetryConfiguration.Value.Value.Publish == true && value.Value != null)
+                {
+                    string encodedValue = string.Empty;
+                    EncodeValue(value, monitoredItem.Subscription.Session.MessageContext, out encodedValue, out bool preserveValueQuotes);
+                    dataChangeMessageData.Value = encodedValue;
+                    dataChangeMessageData.PreserveValueQuotes = preserveValueQuotes;
+                }
+
+                // currently the pattern processing is done here, which adds runtime to the notification processing.
+                // In case of perf issues it can be also done in CreateJsonForDataChangeAsync of IoTHubMessaging.cs.
+
+                // apply patterns
+                dataChangeMessageData.ApplyPatterns(telemetryConfiguration);
+
+                Logger.Debug($"   ApplicationUri: {dataChangeMessageData.ApplicationUri}");
+                Logger.Debug($"   EndpointUrl: {dataChangeMessageData.EndpointUrl}");
+                Logger.Debug($"   DisplayName: {dataChangeMessageData.DisplayName}");
+                Logger.Debug($"   Value: {dataChangeMessageData.Value}");
 
                 // add message to fifo send queue
                 if (monitoredItem.Subscription == null)
