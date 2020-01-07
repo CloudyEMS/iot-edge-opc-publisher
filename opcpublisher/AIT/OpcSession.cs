@@ -1,7 +1,7 @@
 ﻿namespace OpcPublisher
 {
     using Opc.Ua;
-    using opcpublisher.AIT;
+    using OpcPublisher.AIT;
     using OpcPublisher.Crypto;
     using System;
     using System.Linq;

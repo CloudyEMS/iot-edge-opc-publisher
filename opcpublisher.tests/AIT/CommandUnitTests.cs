@@ -1,8 +1,7 @@
 ﻿using Microsoft.Azure.Devices.Client;
 using Moq;
 using Newtonsoft.Json;
-using OpcPublisher;
-using opcpublisher.AIT;
+using OpcPublisher.AIT;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,7 +10,7 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
+namespace OpcPublisher.Tests.AIT
 {
     using static Program;
 

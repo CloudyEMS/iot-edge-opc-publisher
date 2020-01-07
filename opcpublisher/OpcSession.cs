@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using opcpublisher.AIT;
+using OpcPublisher.AIT;
 
 namespace OpcPublisher
 {

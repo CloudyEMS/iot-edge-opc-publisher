@@ -54,10 +54,6 @@ namespace OpcPublisher
                 _showDiagnosticsInfoTask = null;
                 _shutdownTokenSource?.Dispose();
                 _shutdownTokenSource = null;
-                lock (_singletonLock)
-                {
-                    _instance = null;
-                }
             }
         }
 
@@ -313,7 +309,6 @@ namespace OpcPublisher
         private static List<string> _startupLog = new List<string>();
 
         private static readonly object _singletonLock = new object();
-        private static IPublisherDiagnostics _instance = null;
         private static IHubCommunication _hub;
     }
 

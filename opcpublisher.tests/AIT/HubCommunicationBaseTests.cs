@@ -10,7 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
+namespace OpcPublisher.Tests.AIT
 {
     public class HubCommunicationBaseTests
     {

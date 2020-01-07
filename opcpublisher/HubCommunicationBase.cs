@@ -2,8 +2,7 @@
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.AIT;
-using opcpublisher.AIT;
+using OpcPublisher.AIT;
 
 namespace OpcPublisher
 {

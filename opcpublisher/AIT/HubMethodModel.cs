@@ -2,7 +2,7 @@
 using Newtonsoft.Json;
 using OpcPublisher;
 
-namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.AIT
+namespace OpcPublisher.AIT
 {
     /// <summary>
     /// Model class for a get configured event nodes on endpoint response.

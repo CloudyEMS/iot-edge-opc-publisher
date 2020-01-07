@@ -12,7 +12,6 @@
 /**/*.opendb
 /**/*.opensdf
 /**/*.vc.db
-/.vscode/**
 /build/**
 *.dll
 *.so

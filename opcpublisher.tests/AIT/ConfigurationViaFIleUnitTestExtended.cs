@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 using OpcPublisher;
-using opcpublisher.AIT;
+using OpcPublisher.AIT;
 using static OpcPublisher.Program;
 using System;
 using System.Collections.Generic;
@@ -8,7 +8,7 @@ using System.IO;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
+namespace OpcPublisher.Tests.AIT
 {
     [Collection("Need PLC and publisher config")]
     public sealed class ConfigurationViaFileUnitTestExtended
@@ -21,27 +21,6 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
 
             // init configuration objects
             TelemetryConfiguration = PublisherTelemetryConfiguration.Instance;
-        }
-
-        /// <summary>
-        /// Implement IDisposable.
-        /// </summary>
-        void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                // dispose managed resources
-            }
-        }
-
-        /// <summary>
-        /// Implement IDisposable.
-        /// </summary>
-        public void Dispose()
-        {
-            // do cleanup
-            Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         /// <summary>

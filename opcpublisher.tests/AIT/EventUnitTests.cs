@@ -1,10 +1,10 @@
 ﻿using Newtonsoft.Json;
 using OpcPublisher;
-using opcpublisher.AIT;
+using OpcPublisher.AIT;
 using System.Collections.Generic;
 using Xunit;
 
-namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
+namespace OpcPublisher.Tests.AIT
 {
     using static OpcPublisher.Program;
     using System;

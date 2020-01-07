@@ -1,6 +1,15 @@
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments
-
 # OPC Publisher
+This is a fork of the [Microsoft OPC Publisher edge module repository](https://github.com/Azure/iot-edge-opc-publisher) which is now part of the [Azure Industrial IoT repository](https://github.com/Azure/Industrial-IoT). It extends the existing module by the following features:
+
+* Cloud-to-device updates of nodes
+* Cloud-to-device direct method invocation of OPC UA methods
+* OPC UA events
+* OPC UA events data extraction
+* Offline mode: Preserve receive timestamp to guarantee correct message order
+* IoT Central settings, properties and events
+* Connect to IoT hub and IoT Central simultaneously
+* Message properties for message schema type (aggregated, flat) and endpoint id
+
 This reference implementation demonstrates how to connect to existing OPC UA servers and publishes JSON encoded telemetry data from these servers in OPC UA "Pub/Sub" format (using a JSON payload) to Azure IoT Hub. All transport protocols supported by the Azure IoTHub client SDK can be used, i.e. HTTPS, AMQP and MQTT.
 
 This application, apart from including an OPC UA *client* for connecting to existing OPC UA servers you have on your network, also includes an OPC UA *server* on port 62222 that can be used to manage what gets published and offers IoTHub direct methods to do the same.
@@ -15,9 +24,7 @@ OPC Publisher supports batching of the data sent to IoTHub, to reduce network lo
 
 This application uses the OPC Foundations's OPC UA reference stack as nuget packages and therefore licensing of their nuget packages apply. Visit https://opcfoundation.org/license/redistributables/1.3/ for the licensing terms.
 
-|Branch|Status|
-|------|-------------|
-|master|[![Build status](https://ci.appveyor.com/api/projects/status/6t7ru6ow7t9uv74r/branch/master?svg=true)](https://ci.appveyor.com/project/marcschier/iot-gateway-opc-ua-r4ba5/branch/master) [![Build Status](https://travis-ci.org/Azure/iot-gateway-opc-ua.svg?branch=master)](https://travis-ci.org/Azure/iot-gateway-opc-ua)|
+[![Build status](https://dev.azure.com/ait/IntelligentFactory/_apis/build/status/OPCPublisher.CI?branchName=master)](https://dev.azure.com/ait/IntelligentFactory/_build/latest?definitionId=306)
 
 # Building the application
 The application requires the .NET Core SDK 2.1.
@@ -25,18 +32,26 @@ The application requires the .NET Core SDK 2.1.
 ## As native Windows application
 Open the opcpublisher.sln project with Visual Studio 2017 and build the solution by hitting F7.
 
-## As Docker container
+## Build
+Build and push the docker image in debug mode
+```
+docker build --rm -f .\docker\linux\amd64\Dockerfile.debug -t localhost:5000/opcpublisher:0.0.1-amd64.debug .; if ($?) {docker push localhost:5000/opcpublisher:0.0.1-amd64.debug }
+```
 
-Depending if you use Docker Linux or Docker Windows containers, there are different configuration files (Dockerfile or Dockerfile.Windows) to use for building the container.
-From the root of the repository, in a console, type:
+## Debug
+Use the following commands
 
-    docker build -f <docker-configfile-to-use> -t <your-container-name> .
+1. docker build  --rm -f "./docker/linux/amd64/Dockerfile.debug" -t localhost:5000/opcpublisher:0.0.1-amd64.debug "./" ; if ($?) { docker push localhost:5000/opcpublisher:0.0.1-amd64.debug; iotedgehubdev start -d "./deployment.debug.template.json" -v }
+2. If you have problems with startup you can edit Dockerfile.debug to ENTRYPOINT ["dotnet", "/app/opcpublisher.dll", "wfd"] (wfd stands for wait for debugger) then the module is waiting that you connect your debugger otherwise use the existing Dockerfile
+2. Choose OPCPublisher Remote Debug (.NET Core) from launch.json
 
-The `-f` option for `docker build` is optional and the default is to use Dockerfile. Docker also support building directly from a git repository, which means you also can build a Linux container by:
+## Debug (without Docker)
 
-    docker build -t <your-container-name> https://github.com/Azure/iot-edge-opc-publisher
-
-Note: if you want to have correct version information, please install [gitversion](https://gitversion.readthedocs.io/en/latest/) and run it with the following command line in the root of the repository: `gitversion  . /updateassemblyinfo /ensureassemblyinfo updateassemblyinfofilename opcpublisher/AssemblyInfo.cs`
+```
+cd opcpublisher
+dotnet build
+dotnet bin\Debug\netcoreapp2.1\opcpublisher.dll publisher --pf bin\Debug\netcoreapp2.1\publishednodes.json --di=60 --ll=info --to --aa --ki=2 --si=0 --ms=0 --ic --ih Mqtt_WebSocket_Only --ot=60000 --oi=500 --op=500 --ct=2 --kt=2 --portnum=43254 --dc "<deviceConnectionString>" --at X509Store
+```
 
 ## Configuration of the OPC UA nodes to publish
 ### Configuration via configuration file
@@ -82,10 +97,15 @@ This endpoint exposes five methods:
 ### Configuration via IoTHub direct function calls
 OPC Publisher implements the following IoTHub direct method calls, which can be called when OPC Publisher runs standalone or in IoT Edge:
   - PublishNodes
+  - PublishEvents
   - UnpublishNodes
   - UnpublishAllNodes
   - GetConfiguredEndpoints
+  - DeleteConfiguredEndpoint
   - GetConfiguredNodesOnEndpoint
+  - GetConfiguredEventNodesOnEndpoint
+  - GetOpcPublishedConfigurationAsJson
+  - SaveOpcPublishedConfigurationAsJson
   - GetDiagnosticInfo
   - GetDiagnosticLog
   - GetDiagnosticStartupLog
@@ -993,11 +1013,3 @@ and [read the diagnostic information](https://github.com/Azure-Samples/iot-edge-
 If you do not have a real OPC UA server, you can use this [sample OPC UA PLC](https://github.com/Azure-Samples/iot-edge-opc-plc) to start. This sample PLC is also available on Docker Hub.
 
 It implements a couple of tags, which generate random data and tags with anomalies and can be extended easily if you need to simulate any tag values.
-
-
-
-
-
-
-
-

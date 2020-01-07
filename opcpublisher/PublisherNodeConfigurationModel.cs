@@ -2,8 +2,7 @@
 using Opc.Ua;
 using System;
 using System.Collections.Generic;
-using Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.AIT;
-using opcpublisher.AIT;
+using OpcPublisher.AIT;
 
 namespace OpcPublisher
 {

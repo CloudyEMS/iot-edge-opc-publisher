@@ -1,7 +1,7 @@
 ﻿using Microsoft.Azure.Devices.Shared;
 using Newtonsoft.Json;
 using Opc.Ua;
-using opcpublisher.AIT;
+using OpcPublisher.AIT;
 using Serilog.Core;
 using System.Collections.Generic;
 using System.Linq;

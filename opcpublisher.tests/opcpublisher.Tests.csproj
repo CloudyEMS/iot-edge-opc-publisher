@@ -185,7 +185,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\opcpublisher\Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.csproj" />
+    <ProjectReference Include="..\opcpublisher\opcpublisher.csproj" />
   </ItemGroup>
 
 </Project>

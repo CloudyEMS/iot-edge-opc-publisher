@@ -14,7 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
+namespace OpcPublisher.Tests.AIT
 {
     public class IoTCEventsProcessorTests
     {
@@ -71,7 +71,7 @@ namespace Microsoft.Azure.IIoT.Modules.OpcUa.Publisher.Tests.AIT
         }
 
         [Fact]
-        public async Task MonitoredIoTCEventsProcessorAsync_ShouldWaitForTimeout()
+        public void MonitoredIoTCEventsProcessorAsync_ShouldWaitForTimeout()
         {
             int timeoutSeconds = 10;
             double timeoutAcceptanceThresholdSeconds = 0.1;

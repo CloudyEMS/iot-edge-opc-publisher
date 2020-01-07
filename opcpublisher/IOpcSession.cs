@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using opcpublisher.AIT;
+using OpcPublisher.AIT;
 
 namespace OpcPublisher
 {

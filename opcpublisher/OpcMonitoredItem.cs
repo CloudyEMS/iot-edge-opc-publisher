@@ -1,7 +1,7 @@
 ﻿using Opc.Ua.Client;
 using System;
 using System.Linq;
-using opcpublisher.AIT;
+using OpcPublisher.AIT;
 
 namespace OpcPublisher
 {
@@ -727,18 +727,18 @@ namespace OpcPublisher
                     messageData.DataChangeMessageData = dataChangeMessageData;
                     if (SendHub != null)
                     {
-                        if (messageData.DataChangeMessageData.IotCentralItemPublishMode == opcpublisher.AIT.IotCentralItemPublishMode.Setting)
+                        if (messageData.DataChangeMessageData.IotCentralItemPublishMode == OpcPublisher.AIT.IotCentralItemPublishMode.Setting)
                             SendHub.EnqueueSetting(messageData);
-                        else if (messageData.DataChangeMessageData.IotCentralItemPublishMode == opcpublisher.AIT.IotCentralItemPublishMode.Property)
+                        else if (messageData.DataChangeMessageData.IotCentralItemPublishMode == OpcPublisher.AIT.IotCentralItemPublishMode.Property)
                             SendHub.EnqueueProperty(messageData);
                         else
                             SendHub.Enqueue(messageData);
                     }
                     else
                     {
-                        if (messageData.DataChangeMessageData.IotCentralItemPublishMode == opcpublisher.AIT.IotCentralItemPublishMode.Setting)
+                        if (messageData.DataChangeMessageData.IotCentralItemPublishMode == OpcPublisher.AIT.IotCentralItemPublishMode.Setting)
                             Hub.EnqueueSetting(messageData);
-                        else if (messageData.DataChangeMessageData.IotCentralItemPublishMode == opcpublisher.AIT.IotCentralItemPublishMode.Property)
+                        else if (messageData.DataChangeMessageData.IotCentralItemPublishMode == OpcPublisher.AIT.IotCentralItemPublishMode.Property)
                             Hub.EnqueueProperty(messageData);
                         else
                             Hub.Enqueue(messageData);
