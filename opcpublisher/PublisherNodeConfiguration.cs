@@ -620,8 +620,6 @@ namespace OpcPublisher
                             JsonConvert.DeserializeObject<List<PublisherConfigurationFileEntryLegacyModel>>(json);
                         Logger.Information($"JSON received is: {json}");
                         File.WriteAllText(PublisherNodeConfigurationFilename, JsonConvert.SerializeObject(_configurationFileEntries));
-
-                        Logger.Information($"Attempting to restart session to apply new configuration.");
                         return true;
                     }
                     catch (Exception e)
