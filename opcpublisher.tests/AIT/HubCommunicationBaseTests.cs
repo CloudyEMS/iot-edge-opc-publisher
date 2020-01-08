@@ -19,6 +19,7 @@ using static OpcPublisher.Program;
 
 namespace OpcPublisher.Tests.AIT
 {
+    [Collection("Need PLC and publisher config")]
     public class HubCommunicationBaseTests
     {
         private readonly ITestOutputHelper _output;
